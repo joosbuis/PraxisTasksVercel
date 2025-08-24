@@ -259,17 +259,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
       if (!userData) return false;
 
-      // tijdelijke code
+      // tijdelijke code? -> NIET inloggen, alleen melden aan UI
       if (userData.is_first_login && userData.temporary_code === pwd) {
-        setCurrentUser({
-          id: userData.id, employeeNumber: userData.employee_number, username: userData.username,
-          name: userData.name, role: userData.role as UserRole,
-          boards: Array.isArray(userData.boards) ? userData.boards : ["voorwinkel"],
-          isFirstLogin: userData.is_first_login, temporaryCode: userData.temporary_code,
-        });
-        setIsManager(userData.role === "manager");
-        return true;
-      }
+        console.log('[login] Temporary code detected — let LoginForm handle password setup');
+        return false;
+}
+
 
       // Supabase Auth
       if (!userData.is_first_login) {
