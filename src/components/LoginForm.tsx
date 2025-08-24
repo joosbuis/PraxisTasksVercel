@@ -244,12 +244,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">Test Accounts:</h3>
-            <div className="space-y-1 text-xs text-gray-600">
-              <div><strong>Manager:</strong> 1001 / manager123</div>
-              <div><strong>Gebruiker:</strong> 1002 / user123</div>
-            </div>
+
           </div>
 
         </div>
