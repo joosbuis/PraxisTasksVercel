@@ -242,8 +242,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               )}
               {isLoading ? t.loading : t.login}
             </button>
-           </form>
-          </div>
+          </form>
         </div>
       </div>
     </div>
