@@ -210,7 +210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /** ---- Fetchers ---- */
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from<any>('users').select('*');
+      const { data, error } = await supabase.from('users').select('*');
       if (error) throw error;
       const normalizedUsers: User[] = (data || []).map((u: any) => ({
         id: u.id, employeeNumber: u.employee_number, username: u.username, name: u.name,
@@ -225,7 +225,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase.from<any>('settings').select('key, value');
+      const { data, error } = await supabase.from('settings').select('key, value');
       if (error) throw error;
       const obj: any = {}; (data || []).forEach((s: any) => { obj[s.key] = s.value; });
       const merged: AppSettings = {
@@ -242,7 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   const fetchTasks = async () => {
     try {
-      const { data, error } = await supabase.from<any>('tasks').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       setTasks((data || []).map(normalizeTask));
     } catch (error) {
@@ -256,7 +256,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const emp = (employeeNumber ?? '').trim().replaceAll('"','');
       const pwd = (password ?? '').trim();
-      const { data: userData } = await supabase.from<any>('users').select('*').eq('employee_number', emp).maybeSingle();
+      const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
       if (!userData) return false;
 
       // tijdelijke code
@@ -307,7 +307,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setPassword = async (userId: string, newPassword: string) => {
     try {
       if (!newPassword || newPassword.trim().length < 6) return false;
-      const { data: userData } = await supabase.from<any>('users').select('employee_number, username').eq('id', userId).maybeSingle();
+      const { data: userData } = await supabase.from('users').select('employee_number, username').eq('id', userId).maybeSingle();
       if (!userData) return false;
       const email = `${userData.employee_number}@praxis.local`;
       const { error: signUpError } = await supabase.auth.signUp({ email, password: newPassword.trim() });
@@ -320,11 +320,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (authErr2) return false;
         } else { return false; }
       }
-      const { error: updateError } = await supabase.from<any>('users').update({
+      const { error: updateError } = await supabase.from('users').update({
         is_first_login: false, temporary_code: null, updated_at: new Date().toISOString()
       }).eq('id', userId);
       if (updateError) return false;
-      const { data: freshUser } = await supabase.from<any>('users').select('*').eq('id', userId).maybeSingle();
+      const { data: freshUser } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
       if (freshUser) {
         setCurrentUser({
           id: freshUser.id, employeeNumber: freshUser.employee_number, username: freshUser.username,
@@ -345,13 +345,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const emp = (employeeNumber ?? '').trim().replaceAll('"','');
       const one = (code ?? '').trim();
-      const { data } = await supabase.rpc<any>('consume_temp_code', { p_employee_number: emp, p_code: one });
-      if (!data) return null;
+      const { data, error } = await supabase.rpc('consume_temp_code', { p_employee_number: emp, p_code: one });
+      if (error || !data) return null;
       const u: User = {
-        id: data.id, employeeNumber: data.employee_number, username: data.username,
-        name: data.name, role: data.role as UserRole,
-        boards: Array.isArray(data.boards) ? data.boards : ["voorwinkel"],
-        isFirstLogin: data.is_first_login,
+        id: (data as any).id,
+        employeeNumber: (data as any).employee_number,
+        username: (data as any).username,
+        name: (data as any).name,
+        role: (data as any).role as UserRole,
+        boards: Array.isArray((data as any).boards) ? (data as any).boards : ["voorwinkel"],
+        isFirstLogin: (data as any).is_first_login,
       };
       await fetchUsers();
       return u;
@@ -363,10 +366,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
       const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const { error } = await supabase.from<any>('users').insert({
+      const { error } = await supabase.from('users').insert({
         employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
         temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
-      });
+      } as any);
       if (error) throw error;
       await fetchUsers();
       return true;
@@ -379,7 +382,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (patch.role) updateData.role = String(patch.role).toLowerCase() === "manager" ? "manager" : "user";
       if (patch.boards) updateData.boards = patch.boards;
       updateData.updated_at = new Date().toISOString();
-      const { error } = await supabase.from<any>('users').update(updateData).eq('id', id);
+      const { error } = await supabase.from('users').update(updateData).eq('id', id);
       if (error) throw error;
       await fetchUsers();
       return true;
@@ -403,7 +406,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch {}
     try {
-      const { error: dbErr } = await supabase.from<any>('users').delete().eq('id', id);
+      const { error: dbErr } = await supabase.from('users').delete().eq('id', id);
       if (dbErr) throw dbErr;
       await fetchUsers();
       return true;
@@ -416,7 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSettings(merged);
     try {
       for (const [key, value] of Object.entries(serverPayload)) {
-        await supabase.from<any>('settings').upsert({ key, value: value as any, updated_at: new Date().toISOString() });
+        await supabase.from('settings').upsert({ key, value: value as any, updated_at: new Date().toISOString() } as any);
       }
     } catch (error) { console.error('Error updating settings:', error); }
     if (typeof nextTheme !== "undefined") {
@@ -428,14 +431,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addTask = async (task: Task) => {
     try {
       const safe = normalizeTask(task);
-      const { error } = await supabase.from<any>('tasks').insert({
+      const { error } = await supabase.from('tasks').insert({
         id: safe.id, title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
         assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
         deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
         started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
         picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
         completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null,
-      });
+      } as any);
       if (error) throw error;
       await fetchTasks();
     } catch (error) { console.error('Error adding task to database:', error); }
@@ -443,21 +446,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateTask = async (task: Task) => {
     try {
       const safe = normalizeTask({ ...task, updatedAt: new Date().toISOString() });
-      const { error } = await supabase.from<any>('tasks').update({
+      const { error } = await supabase.from('tasks').update({
         title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
         assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
         deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
         started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
         picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
         completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null, updated_at: new Date().toISOString(),
-      }).eq('id', safe.id);
+      } as any).eq('id', safe.id);
       if (error) throw error;
       await fetchTasks();
     } catch (error) { console.error('Error updating task in database:', error); }
   };
   const deleteTask = async (id: string) => {
     try {
-      const { error } = await supabase.from<any>('tasks').delete().eq('id', id);
+      const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (error) throw error;
       await fetchTasks();
     } catch (error) { console.error('Error deleting task from database:', error); }
@@ -537,3 +540,4 @@ export const useAppContext = () => {
   return ctx;
 };
 export const useApp = useAppContext;
+
