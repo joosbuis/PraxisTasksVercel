@@ -15,47 +15,36 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [error, setError] = useState('');
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const { login, users, setPassword, consumeOneTimeCode, t } = useApp();
 
-  const sanitize = (s: string) => (s ?? '').trim().replaceAll('"','');
+  const { login, setPassword, consumeOneTimeCode, t } = useApp();
+
+  const sanitizeEmployee = (s: string) =>
+    (s ?? '').trim().replace(/"/g, '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    const emp = sanitize(employeeNumber);
+    const emp = sanitizeEmployee(employeeNumber);
     const pwd = (password ?? '').trim();
 
-    console.log('Login form submitted for employee:', emp);
-
     try {
-      // Check if user exists and has temporary code (first login path)
-      const user = users.find(u => u.employeeNumber === emp);
-      console.log('User lookup result:', user ? 'found' : 'not found');
-      
-      if (user && pwd === user.temporaryCode && user.isFirstLogin) {
-        // Consume code atomically in DB (cannot be reused)
-        const consumed = await consumeOneTimeCode(emp, pwd);
-        if (!consumed) {
-          setError('Deze eenmalige code is al gebruikt of ongeldig.');
-          setIsLoading(false);
-          return;
-        }
-        console.log('Temporary code consumed, showing password setup');
-        setCurrentUser(consumed);
+      // 1) Check of dit een tijdelijke code is (server-side, betrouwbaar)
+      const tmpUser = await consumeOneTimeCode(emp, pwd);
+      if (tmpUser && tmpUser.isFirstLogin) {
+        // Geldige tijdelijke code -> toon wachtwoord setup (NIET inloggen)
+        setCurrentUser(tmpUser);
         setShowPasswordSetup(true);
         setIsLoading(false);
         return;
       }
 
-      console.log('Attempting regular login');
-      const success = await login(emp, pwd);
-      if (!success) {
-        console.log('Login failed');
+      // 2) Geen tijdelijke code → normale login via Supabase Auth
+      const ok = await login(emp, pwd);
+      if (!ok) {
         setError('Ongeldig personeelsnummer of wachtwoord');
       } else {
-        console.log('Login successful, calling onLoginSuccess');
         onLoginSuccess?.();
       }
     } catch (err) {
@@ -70,47 +59,46 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
-    console.log('Password setup form submitted');
 
-    // Basic client-side validation to avoid Supabase 422 weak_password
-    if (newPassword.trim().length < 6) {
-      console.log('Password too short');
-      setError('Wachtwoord moet minimaal 6 tekens zijn');
-      setIsLoading(false);
-      return;
-    }
-    
-    if (newPassword !== confirmPassword) {
-      console.log('Password confirmation mismatch');
+    const pwd = (newPassword ?? '').trim();
+    const confirm = (confirmPassword ?? '').trim();
+
+    if (pwd !== confirm) {
       setError(t.passwordsNotMatch);
       setIsLoading(false);
       return;
     }
-
-    console.log('Password validation passed, setting up password');
+    if (pwd.length < 6) {
+      setError('Wachtwoord moet minimaal 6 tekens zijn');
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      if (currentUser) {
-        console.log('Setting password for user:', currentUser.id);
-        const passwordSet = await setPassword(currentUser.id, newPassword.trim());
-        if (passwordSet) {
-          console.log('Password set successfully, attempting login');
-          // Now try to login with the new password
-          const success = await login(sanitize(employeeNumber), newPassword.trim());
-          if (success) {
-            console.log('Login with new password successful');
-            setShowPasswordSetup(false);
-            onLoginSuccess?.();
-          } else {
-            console.log('Login with new password failed');
-            setError('Er ging iets mis bij het inloggen met het nieuwe wachtwoord');
-          }
-        } else {
-          console.log('Password setup failed');
-          setError('Er ging iets mis bij het instellen van het wachtwoord');
-        }
+      if (!currentUser?.id) {
+        setError('Geen gebruiker gevonden voor wachtwoordinstelling');
+        setIsLoading(false);
+        return;
       }
+
+      // 1) Stel wachtwoord definitief in (maakt Auth-account aan als nodig)
+      const setOk = await setPassword(currentUser.id, pwd);
+      if (!setOk) {
+        setError('Er ging iets mis bij het instellen van het wachtwoord');
+        setIsLoading(false);
+        return;
+      }
+
+      // 2) Direct inloggen met nieuw wachtwoord
+      const emp = sanitizeEmployee(currentUser.employeeNumber || employeeNumber);
+      const loginOk = await login(emp, pwd);
+      if (!loginOk) {
+        setError('Inloggen met het nieuwe wachtwoord is mislukt');
+        setIsLoading(false);
+        return;
+      }
+
+      onLoginSuccess?.();
     } catch (err) {
       console.error('Password setup error:', err);
       setError('Er ging iets mis bij het instellen van het wachtwoord');
@@ -127,7 +115,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             <div className="text-center mb-8">
               <Key className="w-16 h-16 text-praxis-yellow mx-auto mb-4" />
               <h1 className="text-2xl font-bold text-praxis-grey mb-2">Wachtwoord instellen</h1>
-              <p className="text-gray-600">Welkom <strong className="text-gray-900">{currentUser?.name}</strong>! Stel je eigen wachtwoord in.</p>
+              <p className="text-gray-600">
+                Welkom <strong className="text-gray-900">{currentUser?.name || currentUser?.username}</strong>!
+                Stel je eigen wachtwoord in.
+              </p>
             </div>
 
             <form onSubmit={handlePasswordSetup} className="space-y-6">
@@ -141,7 +132,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="input-field"
-                  placeholder="Voer je nieuwe wachtwoord in"
+                  placeholder="Minimaal 6 tekens"
                   required
                   minLength={6}
                 />
@@ -157,7 +148,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="input-field"
-                  placeholder="Bevestig je nieuwe wachtwoord"
+                  placeholder="Herhaal je wachtwoord"
                   required
                   minLength={6}
                 />
@@ -193,7 +184,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       <div className="max-w-md w-full">
         <div className="card p-8">
           <div className="text-center mb-8">
-            <img 
+            <img
               src="https://images.pexels.com/photos/1181533/pexels-photo-1181533.jpeg?auto=compress&cs=tinysrgb&w=64&h=64&fit=crop"
               alt="Praxis Logo"
               className="w-16 h-16 rounded-lg mx-auto mb-4"
