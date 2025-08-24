@@ -1,0 +1,321 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme variables */
+:root[data-theme="light"] {
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+}
+
+:root[data-theme="dark"] {
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+}
+
+:root[data-theme="auto"] {
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-tertiary: #9ca3af;
+    --border-primary: #374151;
+    --border-secondary: #4b5563;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border-primary);
+  }
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    @apply font-sans transition-colors duration-200;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-praxis-yellow hover:bg-praxis-yellow-dark text-praxis-grey font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    @apply font-medium px-4 py-2 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--border-secondary);
+  }
+  
+  .card {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-primary);
+    @apply rounded-lg shadow-sm border;
+  }
+  
+  .input-field {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+    @apply w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-praxis-yellow focus:border-transparent;
+  }
+  
+  .input-field::placeholder {
+    color: var(--text-tertiary);
+  }
+  
+  /* Dark theme specific overrides */
+  [data-theme="dark"] .bg-gray-50 {
+    background-color: var(--bg-tertiary) !important;
+  }
+  
+  [data-theme="dark"] .bg-gray-100 {
+    background-color: var(--border-primary) !important;
+  }
+  
+  [data-theme="dark"] .bg-white {
+    background-color: var(--bg-secondary) !important;
+  }
+  
+  /* Fix for modals and overlays in dark theme */
+  [data-theme="dark"] .fixed.inset-0.bg-black {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+  }
+  
+  [data-theme="dark"] .bg-white.rounded-lg.shadow-xl {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  [data-theme="dark"] .bg-gray-100.p-4.rounded-lg {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  /* Code elements in dark theme */
+  [data-theme="dark"] code {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+  
+  [data-theme="dark"] .font-mono {
+    color: var(--text-primary) !important;
+  }
+  
+  [data-theme="dark"] .text-gray-900 {
+    color: var(--text-primary) !important;
+  }
+  
+  [data-theme="dark"] .text-gray-700 {
+    color: var(--text-secondary) !important;
+  }
+  
+  [data-theme="dark"] .text-gray-600 {
+    color: var(--text-secondary) !important;
+  }
+  
+  [data-theme="dark"] .text-gray-500 {
+    color: var(--text-tertiary) !important;
+  }
+  
+  [data-theme="dark"] .text-gray-400 {
+    color: var(--text-tertiary) !important;
+  }
+  
+  /* Specific text color fixes */
+  [data-theme="dark"] .text-gray-800 {
+    color: var(--text-primary) !important;
+  }
+  
+  [data-theme="dark"] .text-black {
+    color: var(--text-primary) !important;
+  }
+  
+  [data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-primary) !important;
+  }
+  
+  [data-theme="dark"] .border-gray-300 {
+    border-color: var(--border-secondary) !important;
+  }
+  
+  [data-theme="dark"] .hover\:bg-gray-100:hover {
+    background-color: var(--bg-tertiary) !important;
+  }
+  
+  [data-theme="dark"] .hover\:bg-gray-50:hover {
+    background-color: var(--border-primary) !important;
+  }
+  
+  [data-theme="dark"] .hover\:text-gray-900:hover {
+    color: var(--text-primary) !important;
+  }
+  
+  [data-theme="dark"] .hover\:text-gray-600:hover {
+    color: var(--text-secondary) !important;
+  }
+  
+  /* Hover states for buttons and interactive elements */
+  [data-theme="dark"] .hover\:text-gray-700:hover {
+    color: var(--text-secondary) !important;
+  }
+  
+  [data-theme="dark"] .hover\:bg-white:hover {
+    background-color: var(--bg-tertiary) !important;
+  }
+  
+  /* Gradient backgrounds for dark theme */
+  [data-theme="dark"] .bg-gradient-to-br {
+    background: linear-gradient(to bottom right, var(--bg-tertiary), var(--bg-primary)) !important;
+  }
+  
+  [data-theme="dark"] .bg-gradient-to-r {
+    background: linear-gradient(to right, var(--bg-tertiary), var(--bg-secondary)) !important;
+  }
+  
+  /* Login form specific fixes */
+  [data-theme="dark"] .card {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-primary) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  /* Demo accounts section */
+  [data-theme="dark"] .bg-gray-50.rounded-lg {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+  }
+  
+  /* Strong text elements */
+  [data-theme="dark"] strong {
+    color: var(--text-primary) !important;
+  }
+  
+  /* Status specific colors that should remain visible in dark mode */
+  [data-theme="dark"] .text-blue-600 {
+    color: #60a5fa !important;
+  }
+  
+  [data-theme="dark"] .text-blue-700 {
+    color: #3b82f6 !important;
+  }
+  
+  [data-theme="dark"] .text-green-600 {
+    color: #34d399 !important;
+  }
+  
+  [data-theme="dark"] .text-green-700 {
+    color: #10b981 !important;
+  }
+  
+  [data-theme="dark"] .text-red-600 {
+    color: #f87171 !important;
+  }
+  
+  [data-theme="dark"] .text-red-700 {
+    color: #ef4444 !important;
+  }
+  
+  [data-theme="dark"] .text-orange-600 {
+    color: #fb923c !important;
+  }
+  
+  [data-theme="dark"] .text-orange-700 {
+    color: #f97316 !important;
+  }
+  
+  [data-theme="dark"] .text-yellow-600 {
+    color: #fbbf24 !important;
+  }
+  
+  /* Background colors for status indicators */
+  [data-theme="dark"] .bg-blue-50 {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+  }
+  
+  [data-theme="dark"] .bg-blue-100 {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+  }
+  
+  [data-theme="dark"] .bg-green-50 {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+  }
+  
+  [data-theme="dark"] .bg-green-100 {
+    background-color: rgba(16, 185, 129, 0.2) !important;
+  }
+  
+  /* Department badges in dark theme */
+  [data-theme="dark"] .bg-gray-200.text-gray-700 {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  /* Custom animation for reverse spin */
+  @keyframes spin-reverse {
+    from {
+      transform: rotate(360deg);
+    }
+    to {
+      transform: rotate(0deg);
+    }
+  }
+  
+  .animate-reverse {
+    animation-direction: reverse;
+  }
+  
+  [data-theme="dark"] .bg-red-50 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+  }
+  
+  [data-theme="dark"] .bg-red-100 {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+  }
+  
+  [data-theme="dark"] .bg-orange-50 {
+    background-color: rgba(249, 115, 22, 0.1) !important;
+  }
+  
+  [data-theme="dark"] .bg-orange-100 {
+    background-color: rgba(249, 115, 22, 0.2) !important;
+  }
+  
+  [data-theme="dark"] .bg-yellow-50 {
+    background-color: rgba(251, 191, 36, 0.1) !important;
+  }
+  
+  [data-theme="dark"] .bg-yellow-100 {
+    background-color: rgba(251, 191, 36, 0.2) !important;
+  }
+}

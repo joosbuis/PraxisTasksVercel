@@ -1,0 +1,326 @@
+export interface Translations {
+  // Navigation & General
+  appTitle: string;
+  login: string;
+  logout: string;
+  settings: string;
+  welcome: string;
+  loading: string;
+  save: string;
+  cancel: string;
+  delete: string;
+  edit: string;
+  create: string;
+  close: string;
+  confirm: string;
+  yes: string;
+  no: string;
+  
+  // User Management
+  users: string;
+  userManagement: string;
+  newUser: string;
+  employeeNumber: string;
+  name: string;
+  role: string;
+  manager: string;
+  employee: string;
+  departments: string;
+  voorwinkel: string;
+  achterwinkel: string;
+  password: string;
+  temporaryCode: string;
+  firstLogin: string;
+  
+  // Tasks
+  tasks: string;
+  newTask: string;
+  title: string;
+  description: string;
+  priority: string;
+  high: string;
+  medium: string;
+  low: string;
+  assignedTo: string;
+  deadline: string;
+  status: string;
+  
+  // Task Statuses
+  todo: string;
+  inProgress: string;
+  needsPickup: string;
+  completed: string;
+  
+  // Task Actions
+  start: string;
+  pause: string;
+  complete: string;
+  pickup: string;
+  
+  // Settings
+  personalSettings: string;
+  
+  theme: string;
+  language: string;
+  light: string;
+  dark: string;
+  auto: string;
+  notifications: string;
+  
+  emailNotifications: string;
+  
+  
+  autoLogout: string;
+  autoLogoutTime: string;
+  
+  // Reports
+  dailyReport: string;
+  weeklyReport: string;
+  totalTasks: string;
+  completedTasks: string;
+  overdueTasks: string;
+  activeUsers: string;
+  
+  // Messages
+  loginSuccess: string;
+  loginError: string;
+  taskCreated: string;
+  taskUpdated: string;
+  taskDeleted: string;
+  userCreated: string;
+  userDeleted: string;
+  settingsSaved: string;
+  
+  // Validation
+  required: string;
+  invalidEmail: string;
+  passwordTooShort: string;
+  passwordsNotMatch: string;
+  
+  // Time
+  minutes: string;
+  hours: string;
+  days: string;
+  weeks: string;
+  months: string;
+}
+
+export const translations: Record<string, Translations> = {
+  nl: {
+    // Navigation & General
+    appTitle: 'Praxis Tasks',
+    login: 'Inloggen',
+    logout: 'Uitloggen',
+    settings: 'Instellingen',
+    welcome: 'Welkom',
+    loading: 'Laden...',
+    save: 'Opslaan',
+    cancel: 'Annuleren',
+    delete: 'Verwijderen',
+    edit: 'Bewerken',
+    create: 'Aanmaken',
+    close: 'Sluiten',
+    confirm: 'Bevestigen',
+    yes: 'Ja',
+    no: 'Nee',
+    
+    // User Management
+    users: 'Gebruikers',
+    userManagement: 'Gebruikersbeheer',
+    newUser: 'Nieuwe gebruiker',
+    employeeNumber: 'Personeelsnummer',
+    name: 'Naam',
+    role: 'Rol',
+    manager: 'Manager',
+    employee: 'Werknemer',
+    departments: 'Afdelingen',
+    voorwinkel: 'Voorwinkel',
+    achterwinkel: 'Achterwinkel',
+    password: 'Wachtwoord',
+    temporaryCode: 'Tijdelijke code',
+    firstLogin: 'Eerste login',
+    
+    // Tasks
+    tasks: 'Taken',
+    newTask: 'Nieuwe taak',
+    title: 'Titel',
+    description: 'Beschrijving',
+    priority: 'Prioriteit',
+    high: 'Hoog',
+    medium: 'Gemiddeld',
+    low: 'Laag',
+    assignedTo: 'Toegewezen aan',
+    deadline: 'Deadline',
+    status: 'Status',
+    
+    // Task Statuses
+    todo: 'Te Doen',
+    inProgress: 'Mee Bezig',
+    needsPickup: 'Taak Oppakken',
+    completed: 'Afgerond',
+    
+    // Task Actions
+    start: 'Start',
+    pause: 'Pauzeer',
+    complete: 'Afronden',
+    pickup: 'Oppakken',
+    
+    // Settings
+    personalSettings: 'Persoonlijke Instellingen',
+    
+    theme: 'Thema',
+    language: 'Taal',
+    light: 'Licht',
+    dark: 'Donker',
+    auto: 'Automatisch',
+    notifications: 'Notificaties',
+    
+    emailNotifications: 'E-mail notificaties',
+    
+    
+    autoLogout: 'Automatisch uitloggen',
+    autoLogoutTime: 'Uitlog tijd (minuten)',
+    
+    // Reports
+    dailyReport: 'Dagelijks Rapport',
+    weeklyReport: 'Wekelijks Rapport',
+    totalTasks: 'Totaal Taken',
+    completedTasks: 'Afgerond',
+    overdueTasks: 'Verlopen',
+    activeUsers: 'Actieve Gebruikers',
+    
+    // Messages
+    loginSuccess: 'Succesvol ingelogd',
+    loginError: 'Ongeldig personeelsnummer of wachtwoord',
+    taskCreated: 'Taak aangemaakt',
+    taskUpdated: 'Taak bijgewerkt',
+    taskDeleted: 'Taak verwijderd',
+    userCreated: 'Gebruiker aangemaakt',
+    userDeleted: 'Gebruiker verwijderd',
+    settingsSaved: 'Instellingen opgeslagen',
+    
+    // Validation
+    required: 'Dit veld is verplicht',
+    invalidEmail: 'Ongeldig e-mailadres',
+    passwordTooShort: 'Wachtwoord moet minimaal 4 karakters lang zijn',
+    passwordsNotMatch: 'Wachtwoorden komen niet overeen',
+    
+    // Time
+    minutes: 'minuten',
+    hours: 'uren',
+    days: 'dagen',
+    weeks: 'weken',
+    months: 'maanden',
+  },
+  
+  en: {
+    // Navigation & General
+    appTitle: 'Praxis Tasks',
+    login: 'Login',
+    logout: 'Logout',
+    settings: 'Settings',
+    welcome: 'Welcome',
+    loading: 'Loading...',
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    create: 'Create',
+    close: 'Close',
+    confirm: 'Confirm',
+    yes: 'Yes',
+    no: 'No',
+    
+    // User Management
+    users: 'Users',
+    userManagement: 'User Management',
+    newUser: 'New user',
+    employeeNumber: 'Employee Number',
+    name: 'Name',
+    role: 'Role',
+    manager: 'Manager',
+    employee: 'Employee',
+    departments: 'Departments',
+    voorwinkel: 'Front Store',
+    achterwinkel: 'Back Store',
+    password: 'Password',
+    temporaryCode: 'Temporary code',
+    firstLogin: 'First login',
+    
+    // Tasks
+    tasks: 'Tasks',
+    newTask: 'New task',
+    title: 'Title',
+    description: 'Description',
+    priority: 'Priority',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    assignedTo: 'Assigned to',
+    deadline: 'Deadline',
+    status: 'Status',
+    
+    // Task Statuses
+    todo: 'To Do',
+    inProgress: 'In Progress',
+    needsPickup: 'Needs Pickup',
+    completed: 'Completed',
+    
+    // Task Actions
+    start: 'Start',
+    pause: 'Pause',
+    complete: 'Complete',
+    pickup: 'Pick up',
+    
+    // Settings
+    personalSettings: 'Personal Settings',
+    
+    theme: 'Theme',
+    language: 'Language',
+    light: 'Light',
+    dark: 'Dark',
+    auto: 'Auto',
+    notifications: 'Notifications',
+    
+    emailNotifications: 'Email notifications',
+    
+    
+    autoLogout: 'Auto logout',
+    autoLogoutTime: 'Logout time (minutes)',
+    
+    // Reports
+    dailyReport: 'Daily Report',
+    weeklyReport: 'Weekly Report',
+    totalTasks: 'Total Tasks',
+    completedTasks: 'Completed',
+    overdueTasks: 'Overdue',
+    activeUsers: 'Active Users',
+    
+    // Messages
+    loginSuccess: 'Successfully logged in',
+    loginError: 'Invalid employee number or password',
+    taskCreated: 'Task created',
+    taskUpdated: 'Task updated',
+    taskDeleted: 'Task deleted',
+    userCreated: 'User created',
+    userDeleted: 'User deleted',
+    settingsSaved: 'Settings saved',
+    
+    // Validation
+    required: 'This field is required',
+    invalidEmail: 'Invalid email address',
+    passwordTooShort: 'Password must be at least 4 characters long',
+    passwordsNotMatch: 'Passwords do not match',
+    
+    // Time
+    minutes: 'minutes',
+    hours: 'hours',
+    days: 'days',
+    weeks: 'weeks',
+    months: 'months',
+  }
+};
+
+export function useTranslation(language: string): Translations {
+  return translations[language] || translations.nl;
+}
