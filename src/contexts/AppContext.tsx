@@ -153,6 +153,22 @@ interface AppContextType {
   t: typeof t;
 }
 
+async function withAuthRetry<T>(op: () => Promise<{ data: any; error: any }>) {
+  let res = await op();
+  // 401/403 of PostgREST session errors -> probeer één keer te verversen en opnieuw
+  if (res?.error && (
+      res.error.status === 401 ||
+      res.error.status === 403 ||
+      String(res.error.code || '').toUpperCase().includes('JWT') ||
+      String(res.error.message || '').toLowerCase().includes('token') ||
+      String(res.error.message || '').toLowerCase().includes('session')
+    )) {
+    await supabase.auth.refreshSession();
+    res = await op();
+  }
+  return res;
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 /** ---- Helpers ---- */
