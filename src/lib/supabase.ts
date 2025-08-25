@@ -12,6 +12,7 @@ export const supabase = createClient<any>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'pkce'
+    storage: localStorage,
   },
   global: {
     headers: { 'x-client-info': 'praxis-tasks' },
