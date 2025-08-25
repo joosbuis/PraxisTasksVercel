@@ -117,7 +117,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               <h1 className="text-2xl font-bold text-praxis-grey mb-2">Wachtwoord instellen</h1>
               <p className="text-gray-600">
                 Welkom <strong className="text-gray-900">{currentUser?.name || currentUser?.username}</strong>!
-                Stel je eigen wachtwoord in.
+                Stel je eigen wachtwoord in. Let op, gebruik nooit een prive wachtwoord!
               </p>
             </div>
 
