@@ -1,20 +1,22 @@
+// src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl: string = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseAnonKey: string = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-if (!supabaseUrl) console.warn('[DEBUG] Missing VITE_SUPABASE_URL env');
-if (!supabaseAnonKey) console.warn('[DEBUG] Missing VITE_SUPABASE_ANON_KEY env');
+if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL is missing');
+if (!supabaseAnonKey) throw new Error('VITE_SUPABASE_ANON_KEY is missing');
 
-export const supabase = createClient<any>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
     storage: localStorage,
   },
   global: {
-    headers: { 'x-client-info': 'praxis-tasks' },
+    headers: {
+      'x-client-info': 'praxis-tasks',
+    },
   },
 });
