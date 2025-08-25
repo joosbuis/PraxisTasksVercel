@@ -8,7 +8,7 @@ export interface AppSettings {
   theme: "light" | "dark" | "auto";
   language: "nl" | "en";
   autoLogout: boolean;
-  autoLogoutTime: number; // in minuten
+  autoLogoutTime: number; // minuten
   pushNotifications: boolean;
   deadlineWarnings: boolean;
   deadlineWarningDays: number;
@@ -153,9 +153,9 @@ interface AppContextType {
   t: typeof t;
 }
 
-/** ---- Auth retry helper ---- */
-async function withAuthRetry<T>(op: () => Promise<{ data: any; error: any }>) {
-  let res = await op();
+/** ---- Auth retry helper (lossere typing voor Supabase “thenables”) ---- */
+async function withAuthRetry(op: () => any): Promise<any> {
+  let res: any = await op();
   if (res?.error && (
     res.error.status === 401 ||
     res.error.status === 403 ||
@@ -218,10 +218,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // ---- Thema & Taal updates ----
   useEffect(() => {
-    // thema met per-user override
     const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : (settings.theme || "light");
     document.documentElement.setAttribute("data-theme", theme);
-    // taal (html lang)
     document.documentElement.setAttribute("lang", settings.language || "nl");
   }, [currentUser?.id, settings.theme, settings.language]);
 
@@ -251,7 +249,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         theme: obj.theme === "dark" ? "dark" : obj.theme === "auto" ? "auto" : "light",
         language: obj.language === "en" ? "en" : "nl",
       };
-      // respecteer per-user theme override
       const effectiveTheme = currentUser ? (getUserTheme(currentUser.id) || merged.theme) : merged.theme;
       setSettings({ ...merged, theme: effectiveTheme });
       document.documentElement.setAttribute("data-theme", effectiveTheme);
@@ -263,7 +260,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchTasks = async () => {
     try {
       const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
+    if (error) throw error;
       setTasks((data || []).map(normalizeTask));
     } catch (error) {
       console.error('Error fetching tasks from database:', error);
@@ -279,7 +276,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
       if (!userData) return false;
 
-      // tijdelijke code? -> NIET inloggen, UI handelt wachtwoord setup af
+      // tijdelijke code? -> NIET inloggen (UI moet naar password-setup flow)
       if (userData.is_first_login && userData.temporary_code === pwd) {
         console.log('[login] Temporary code detected — let LoginForm handle password setup');
         return false;
@@ -453,7 +450,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Error updating settings:', error);
     }
 
-    // lokale UI updates
     if (typeof nextTheme !== "undefined") {
       try { setUserTheme(currentUser?.id, nextTheme as AppSettings["theme"]); } catch {}
       document.documentElement.setAttribute("data-theme", String(nextTheme));
@@ -560,7 +556,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     activityHandlerRef.current = null;
   };
 
-  // manage auto-logout lifecycle
   useEffect(() => {
     if (currentUser && settings.autoLogout) {
       bindActivityListeners();
@@ -575,7 +570,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser?.id, settings.autoLogout, settings.autoLogoutTime]);
 
-  // Init: fetchen, realtime, auth state changes, polling fallback
+  // Init
   useEffect(() => {
     let unsub: (() => void) | null = null;
     (async () => {
@@ -598,7 +593,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsub = () => sub.data.subscription.unsubscribe();
     })();
 
-    // Polling fallback elke 15s (voor als Realtime niet vuurt)
+    // Poll fallback (15s) als realtime niet vuurt
     pollRef.current = window.setInterval(() => { fetchTasks(); }, 15000);
 
     return () => {
@@ -608,7 +603,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Extra zekerheid bij user wissel
+  // refresh bij user switch
   useEffect(() => {
     if (currentUser) {
       (async () => {
