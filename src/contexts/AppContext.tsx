@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Task, TaskStatus, User, UserRole, BoardType } from "../types";
 import { supabase } from "../lib/supabase";
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 
-/** ---- Types & defaults ---- */
+/** ---------------- Types & defaults ---------------- */
 export interface AppSettings {
   theme: "light" | "dark" | "auto";
   language: "nl" | "en";
@@ -21,6 +21,7 @@ export interface AppSettings {
   requireTaskApproval: boolean;
   maxTasksPerUser: number;
 }
+
 export const defaultSettings: AppSettings = {
   theme: "light",
   language: "nl",
@@ -39,6 +40,162 @@ export const defaultSettings: AppSettings = {
   maxTasksPerUser: 10,
 };
 
+/** ---------------- i18n ---------------- */
+const i18n = {
+  nl: {
+    loginToAccount: "Log in op je account",
+    employeeNumber: "Personeelsnummer",
+    password: "Wachtwoord",
+    login: "Inloggen",
+    loading: "Bezig...",
+    loginError: "Er ging iets mis bij het inloggen",
+    passwordsNotMatch: "Wachtwoorden komen niet overeen",
+    passwordTooShort: "Wachtwoord is te kort",
+    settings: "Instellingen",
+    userManagement: "Gebruikersbeheer",
+    personalSettings: "Persoonlijke instellingen",
+    systemSettings: "Systeeminstellingen",
+    tasks: "Taken",
+    users: "Gebruikers",
+    newTask: "Nieuwe taak",
+    create: "Aanmaken",
+    save: "Opslaan",
+    cancel: "Annuleren",
+    close: "Sluiten",
+    confirm: "Bevestigen",
+    yes: "Ja",
+    delete: "Verwijderen",
+    edit: "Bewerken",
+    title: "Titel",
+    description: "Beschrijving",
+    priority: "Prioriteit",
+    assignedTo: "Toewijzen aan",
+    deadline: "Deadline",
+    statusTodo: "Te Doen",
+    statusNeedsPickup: "Taak oppakken",
+    statusInProgress: "Mee Bezig",
+    statusCompleted: "Afgerond",
+    manager: "Manager",
+    employee: "Medewerker",
+    role: "Rol",
+    name: "Naam",
+    departments: "Afdeling",
+    voorwinkel: "Voorwinkel",
+    achterwinkel: "Achterwinkel",
+    newUser: "Nieuwe gebruiker",
+    userCreated: "Gebruiker aangemaakt",
+    temporaryCode: "Eenmalige inlogcode",
+    firstLogin: "Eerste login",
+    low: "Laag",
+    medium: "Gemiddeld",
+    high: "Hoog",
+    theme: "Thema",
+    language: "Taal",
+    sound: "Geluid",
+    light: "Licht",
+    dark: "Donker",
+    auto: "Auto",
+    autoLogout: "Automatisch uitloggen",
+    autoLogoutTime: "Tijd tot automatisch uitloggen (min.)",
+    pushNotifications: "Push notificaties",
+    deadlineWarnings: "Deadline waarschuwingen",
+    days: "dagen",
+    taskReminders: "Taakherinneringen",
+    dailyReport: "Dagrapport",
+    weeklyReport: "Weekrapport",
+    totalTasks: "Totaal taken",
+    completed: "Afgerond",
+    overdueTasks: "Verlopen taken",
+    activeUsers: "Actieve gebruikers",
+    start: "Starten",
+    pause: "Pauzeren",
+    pickup: "Oppakken",
+    complete: "Afronden",
+    welcome: "Welkom",
+    loginSuccess: "Succesvol ingelogd",
+    copyCode: "Kopieer code",
+    copied: "Gekopieerd!",
+  },
+  en: {
+    loginToAccount: "Log in to your account",
+    employeeNumber: "Employee number",
+    password: "Password",
+    login: "Log in",
+    loading: "Loading...",
+    loginError: "Something went wrong while logging in",
+    passwordsNotMatch: "Passwords do not match",
+    passwordTooShort: "Password is too short",
+    settings: "Settings",
+    userManagement: "User management",
+    personalSettings: "Personal settings",
+    systemSettings: "System settings",
+    tasks: "Tasks",
+    users: "Users",
+    newTask: "New task",
+    create: "Create",
+    save: "Save",
+    cancel: "Cancel",
+    close: "Close",
+    confirm: "Confirm",
+    yes: "Yes",
+    delete: "Delete",
+    edit: "Edit",
+    title: "Title",
+    description: "Description",
+    priority: "Priority",
+    assignedTo: "Assign to",
+    deadline: "Deadline",
+    statusTodo: "To do",
+    statusNeedsPickup: "Pick up task",
+    statusInProgress: "In progress",
+    statusCompleted: "Completed",
+    manager: "Manager",
+    employee: "Employee",
+    role: "Role",
+    name: "Name",
+    departments: "Department",
+    voorwinkel: "Front store",
+    achterwinkel: "Back store",
+    newUser: "New user",
+    userCreated: "User created",
+    temporaryCode: "One-time code",
+    firstLogin: "First login",
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    theme: "Theme",
+    language: "Language",
+    sound: "Sound",
+    light: "Light",
+    dark: "Dark",
+    auto: "Auto",
+    autoLogout: "Auto logout",
+    autoLogoutTime: "Auto logout time (min.)",
+    pushNotifications: "Push notifications",
+    deadlineWarnings: "Deadline warnings",
+    days: "days",
+    taskReminders: "Task reminders",
+    dailyReport: "Daily report",
+    weeklyReport: "Weekly report",
+    totalTasks: "Total tasks",
+    completed: "Completed",
+    overdueTasks: "Overdue tasks",
+    activeUsers: "Active users",
+    start: "Start",
+    pause: "Pause",
+    pickup: "Pick up",
+    complete: "Complete",
+    welcome: "Welcome",
+    loginSuccess: "Logged in successfully",
+    copyCode: "Copy code",
+    copied: "Copied!",
+  },
+} as const;
+
+type LangKey = keyof typeof i18n;
+const getText = (lang: LangKey) => i18n[lang] ?? i18n.nl;
+
+/** ---------------- Local per-user theme storage ---------------- */
 function getUserTheme(userId?: string): AppSettings["theme"] | null {
   try {
     if (!userId) return null;
@@ -52,81 +209,7 @@ function setUserTheme(userId: string | undefined, theme: AppSettings["theme"]) {
   try { if (userId) localStorage.setItem(`praxis:userTheme:${userId}`, theme); } catch {}
 }
 
-const t = {
-  loginToAccount: "Log in op je account",
-  employeeNumber: "Personeelsnummer",
-  password: "Wachtwoord",
-  login: "Inloggen",
-  loading: "Bezig...",
-  loginError: "Er ging iets mis bij het inloggen",
-  passwordsNotMatch: "Wachtwoorden komen niet overeen",
-  passwordTooShort: "Wachtwoord is te kort",
-  settings: "Instellingen",
-  userManagement: "Gebruikersbeheer",
-  personalSettings: "Persoonlijke instellingen",
-  systemSettings: "Systeeminstellingen",
-  tasks: "Taken",
-  users: "Gebruikers",
-  newTask: "Nieuwe taak",
-  create: "Aanmaken",
-  save: "Opslaan",
-  cancel: "Annuleren",
-  close: "Sluiten",
-  confirm: "Bevestigen",
-  yes: "Ja",
-  delete: "Verwijderen",
-  edit: "Bewerken",
-  title: "Titel",
-  description: "Beschrijving",
-  priority: "Prioriteit",
-  assignedTo: "Toewijzen aan",
-  deadline: "Deadline",
-  statusTodo: "Te Doen",
-  statusNeedsPickup: "Taak oppakken",
-  statusInProgress: "Mee Bezig",
-  statusCompleted: "Afgerond",
-  manager: "Manager",
-  employee: "Medewerker",
-  role: "Rol",
-  name: "Naam",
-  departments: "Afdeling",
-  voorwinkel: "Voorwinkel",
-  achterwinkel: "Achterwinkel",
-  newUser: "Nieuwe gebruiker",
-  userCreated: "Gebruiker aangemaakt",
-  temporaryCode: "Tijdelijke code",
-  firstLogin: "Eerste login",
-  low: "Laag",
-  medium: "Gemiddeld",
-  high: "Hoog",
-  theme: "Thema",
-  language: "Taal",
-  sound: "Geluid",
-  light: "Licht",
-  dark: "Donker",
-  auto: "Auto",
-  autoLogout: "Automatisch uitloggen",
-  autoLogoutTime: "Tijd tot automatisch uitloggen (min.)",
-  pushNotifications: "Push notificaties",
-  deadlineWarnings: "Deadline waarschuwingen",
-  days: "dagen",
-  taskReminders: "Taakherinneringen",
-  dailyReport: "Dagrapport",
-  weeklyReport: "Weekrapport",
-  totalTasks: "Totaal taken",
-  completed: "Afgerond",
-  overdueTasks: "Verlopen taken",
-  activeUsers: "Actieve gebruikers",
-  start: "Starten",
-  pause: "Pauzeren",
-  pickup: "Oppakken",
-  complete: "Afronden",
-  welcome: "Welkom",
-  loginSuccess: "Succesvol ingelogd",
-  copyCode: "Kopieer code",
-  copied: "Gekopieerd!",
-};
-
+/** ---------------- Context shape ---------------- */
 type NewUserInput = { employeeNumber: string; name: string; role: UserRole | "employee"; boards: BoardType[]; };
 type UpdateUserPatch = { name?: string; role?: UserRole | "employee"; boards?: BoardType[]; };
 
@@ -150,28 +233,12 @@ interface AppContextType {
   addTask: (task: Task) => Promise<void>;
   updateTask: (task: Task) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
-  t: typeof t;
-}
-
-/** ---- Auth retry helper (lossere typing voor Supabase “thenables”) ---- */
-async function withAuthRetry(op: () => any): Promise<any> {
-  let res: any = await op();
-  if (res?.error && (
-    res.error.status === 401 ||
-    res.error.status === 403 ||
-    String(res.error.code || '').toUpperCase().includes('JWT') ||
-    String(res.error.message || '').toLowerCase().includes('token') ||
-    String(res.error.message || '').toLowerCase().includes('session')
-  )) {
-    await supabase.auth.refreshSession();
-    res = await op();
-  }
-  return res;
+  t: typeof i18n.nl; // runtime-bound to settings.language
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-/** ---- Helpers ---- */
+/** ---------------- Helpers ---------------- */
 const uuid = () => crypto.randomUUID();
 const normalizeTask = (x: any): Task => ({
   id: String(x?.id ?? uuid()),
@@ -205,7 +272,34 @@ const normalizeTask = (x: any): Task => ({
   activities: Array.isArray(x?.activities) ? x?.activities : [],
 });
 
-/** ---- Provider ---- */
+/** Simple auth retry */
+async function withAuthRetry<T>(op: () => Promise<T>): Promise<T> {
+  const res: any = await op();
+  if (res?.error && (
+    res.error.status === 401 ||
+    res.error.status === 403 ||
+    String(res.error.code || "").toUpperCase().includes("JWT") ||
+    String(res.error.message || "").toLowerCase().includes("token") ||
+    String(res.error.message || "").toLowerCase().includes("session")
+  )) {
+    await supabase.auth.refreshSession();
+    return await op();
+  }
+  return res;
+}
+
+/** Keep auth alive (extra safety for some browsers/environments) */
+function useAuthKeepAlive(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const id = window.setInterval(async () => {
+      try { await supabase.auth.getSession(); } catch {}
+    }, 4 * 60 * 1000); // elke 4 minuten
+    return () => clearInterval(id);
+  }, [enabled]);
+}
+
+/** ---------------- Provider ---------------- */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isManager, setIsManager] = useState(false);
@@ -213,37 +307,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [currentBoard, setCurrentBoard] = useState<BoardType>("voorwinkel");
   const [tasks, setTasks] = useState<Task[]>([]);
+
   const realtimeRef = useRef<RealtimeChannel | null>(null);
   const pollRef = useRef<number | null>(null);
 
-  // ---- Thema & Taal updates ----
+  // i18n (bound to settings.language)
+  const t = useMemo(() => getText(settings.language as LangKey), [settings.language]);
+
+  // Theme & lang attributes
   useEffect(() => {
     const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : (settings.theme || "light");
     document.documentElement.setAttribute("data-theme", theme);
     document.documentElement.setAttribute("lang", settings.language || "nl");
   }, [currentUser?.id, settings.theme, settings.language]);
 
-  /** ---- Fetchers ---- */
+  /** ---------------- Fetchers ---------------- */
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from('users').select('*');
+      const { data, error } = await supabase.from("users").select("*");
       if (error) throw error;
-      const normalizedUsers: User[] = (data || []).map((u: any) => ({
-        id: u.id, employeeNumber: u.employee_number, username: u.username, name: u.name,
-        role: u.role as UserRole, boards: Array.isArray(u.boards) ? u.boards : ["voorwinkel"],
-        isFirstLogin: u.is_first_login, temporaryCode: u.temporary_code,
+      const normalized: User[] = (data || []).map((u: any) => ({
+        id: u.id,
+        employeeNumber: u.employee_number,
+        username: u.username,
+        name: u.name,
+        role: u.role as UserRole,
+        boards: Array.isArray(u.boards) ? u.boards : ["voorwinkel"],
+        isFirstLogin: u.is_first_login,
+        temporaryCode: u.temporary_code,
       }));
-      setUsers(normalizedUsers);
-    } catch (error) {
-      console.error('Error fetching users from database:', error);
+      setUsers(normalized);
+    } catch (e) {
+      console.error("[users] fetch error", e);
       setUsers([]);
     }
   };
+
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase.from('settings').select('key, value');
+      const { data, error } = await supabase.from("settings").select("key, value");
       if (error) throw error;
-      const obj: any = {}; (data || []).forEach((s: any) => { obj[s.key] = s.value; });
+      const obj: Record<string, any> = {};
+      (data || []).forEach((s: any) => { obj[s.key] = s.value; });
       const merged: AppSettings = {
         ...defaultSettings, ...obj,
         theme: obj.theme === "dark" ? "dark" : obj.theme === "auto" ? "auto" : "light",
@@ -253,32 +358,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSettings({ ...merged, theme: effectiveTheme });
       document.documentElement.setAttribute("data-theme", effectiveTheme);
       document.documentElement.setAttribute("lang", merged.language);
-    } catch (error) {
-      console.error('Error fetching settings:', error);
+    } catch (e) {
+      console.error("[settings] fetch error", e);
     }
   };
+
   const fetchTasks = async () => {
     try {
-      const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
+      const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
       setTasks((data || []).map(normalizeTask));
-    } catch (error) {
-      console.error('Error fetching tasks from database:', error);
+    } catch (e) {
+      console.error("[tasks] fetch error", e);
       setTasks([]);
     }
   };
 
-  /** ---- Auth ---- */
+  // ensure current user mapping from Supabase Auth -> users table
+  const loadCurrentUserFromSession = async (session: Session | null) => {
+    if (!session?.user?.id) return;
+    try {
+      const { data: u } = await supabase.from("users").select("*").eq("id", session.user.id).maybeSingle();
+      if (u) {
+        const mapped: User = {
+          id: u.id,
+          employeeNumber: u.employee_number,
+          username: u.username,
+          name: u.name,
+          role: u.role as UserRole,
+          boards: Array.isArray(u.boards) ? u.boards : ["voorwinkel"],
+          isFirstLogin: !!u.is_first_login,
+        };
+        setCurrentUser(mapped);
+        setIsManager(u.role === "manager");
+      }
+    } catch {/*ignore*/}
+  };
+
+  /** ---------------- Auth ---------------- */
   const login = async (employeeNumber: string, password: string) => {
     try {
-      const emp = (employeeNumber ?? '').trim().replace(/"/g,'');
-      const pwd = (password ?? '').trim();
-      const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
+      const emp = (employeeNumber ?? "").trim().replace(/"/g, "");
+      const pwd = (password ?? "").trim();
+      const { data: userData } = await supabase.from("users").select("*").eq("employee_number", emp).maybeSingle();
       if (!userData) return false;
 
-      // tijdelijke code? -> NIET inloggen (UI moet naar password-setup flow)
+      // tijdelijke code? -> laat UI password-setup doen
       if (userData.is_first_login && userData.temporary_code === pwd) {
-        console.log('[login] Temporary code detected — let LoginForm handle password setup');
+        console.log("[login] Temporary code detected — go to password setup flow");
         return false;
       }
 
@@ -288,13 +415,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
         if (authError) return false;
         if (authData.user) {
-          setCurrentUser({
-            id: authData.user.id, employeeNumber: userData.employee_number, username: userData.username,
-            name: userData.name, role: userData.role as UserRole,
-            boards: Array.isArray(userData.boards) ? userData.boards : ["voorwinkel"],
-            isFirstLogin: false,
-          });
-          setIsManager(userData.role === "manager");
+          await loadCurrentUserFromSession({ user: authData.user } as Session);
           await new Promise(r => setTimeout(r, 60));
           await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
           resetRealtimeSubscription();
@@ -317,34 +438,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setPassword = async (userId: string, newPassword: string) => {
     try {
       if (!newPassword || newPassword.trim().length < 6) return false;
-      const { data: userData } = await supabase.from('users').select('employee_number, username').eq('id', userId).maybeSingle();
+      const { data: userData } = await supabase.from("users").select("employee_number, username").eq("id", userId).maybeSingle();
       if (!userData) return false;
       const email = `${userData.employee_number}@praxis.local`;
       const { error: signUpError } = await supabase.auth.signUp({ email, password: newPassword.trim() });
       if (signUpError) {
         const status = (signUpError as any).status;
         const code = (signUpError as any).code || (signUpError as any).message;
-        if (status === 422 && String(code).includes('weak_password')) return false;
-        if (status === 422 && String(code).includes('user_already_exists')) {
+        if (status === 422 && String(code).includes("weak_password")) return false;
+        if (status === 422 && String(code).includes("user_already_exists")) {
           const { error: authErr2 } = await supabase.auth.signInWithPassword({ email, password: newPassword.trim() });
           if (authErr2) return false;
         } else { return false; }
       }
       const { error: updateError } = await withAuthRetry(() =>
-        supabase.from('users').update({
+        supabase.from("users").update({
           is_first_login: false, temporary_code: null, updated_at: new Date().toISOString()
-        } as any).eq('id', userId)
+        } as any).eq("id", userId)
       );
       if (updateError) return false;
 
-      const { data: freshUser } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+      const { data: freshUser } = await supabase.from("users").select("*").eq("id", userId).maybeSingle();
       if (freshUser) {
-        setCurrentUser({
-          id: freshUser.id, employeeNumber: freshUser.employee_number, username: freshUser.username,
-          name: freshUser.name, role: freshUser.role as UserRole,
+        const mapped: User = {
+          id: freshUser.id,
+          employeeNumber: freshUser.employee_number,
+          username: freshUser.username,
+          name: freshUser.name,
+          role: freshUser.role as UserRole,
           boards: Array.isArray(freshUser.boards) ? freshUser.boards : ["voorwinkel"],
           isFirstLogin: !!freshUser.is_first_login,
-        });
+        };
+        setCurrentUser(mapped);
         setIsManager(freshUser.role === "manager");
       }
       await new Promise(r => setTimeout(r, 60));
@@ -356,9 +481,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const consumeOneTimeCode = async (employeeNumber: string, code: string): Promise<User | null> => {
     try {
-      const emp = (employeeNumber ?? '').trim().replace(/"/g,'');
-      const one = (code ?? '').trim();
-      const { data, error } = await supabase.rpc('consume_temp_code', { p_employee_number: emp, p_code: one });
+      const emp = (employeeNumber ?? "").trim().replace(/"/g, "");
+      const one = (code ?? "").trim();
+      const { data, error } = await supabase.rpc("consume_temp_code", { p_employee_number: emp, p_code: one });
       if (error || !data) return null;
       const u: User = {
         id: (data as any).id,
@@ -374,13 +499,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch { return null; }
   };
 
-  /** ---- CRUD ---- */
+  /** ---------------- CRUD ---------------- */
   const createUser = async (u: NewUserInput) => {
     try {
       const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
       const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const { error } = await withAuthRetry(() =>
-        supabase.from('users').insert({
+        supabase.from("users").insert({
           employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
           temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
         } as any)
@@ -400,7 +525,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateData.updated_at = new Date().toISOString();
 
       const { error } = await withAuthRetry(() =>
-        supabase.from('users').update(updateData).eq('id', id)
+        supabase.from("users").update(updateData).eq("id", id)
       );
       if (error) throw error;
       await fetchUsers();
@@ -410,7 +535,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteUser = async (id: string) => {
     try {
-      const { error } = await supabase.functions.invoke('delete-user', { body: { id } });
+      const { error } = await supabase.functions.invoke("delete-user", { body: { id } });
       if (!error) { await fetchUsers(); return true; }
     } catch {}
     try {
@@ -418,16 +543,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const anonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
       if (functionsUrl) {
         const res = await fetch(`${functionsUrl}/delete-user`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(anonKey ? { 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey } : {}) },
-          mode: 'cors', body: JSON.stringify({ id }),
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(anonKey ? { "Authorization": `Bearer ${anonKey}`, "apikey": anonKey } : {}) },
+          mode: "cors", body: JSON.stringify({ id }),
         });
         if (res.ok) { await fetchUsers(); return true; }
       }
     } catch {}
     try {
       const { error: dbErr } = await withAuthRetry(() =>
-        supabase.from('users').delete().eq('id', id)
+        supabase.from("users").delete().eq("id", id)
       );
       if (dbErr) throw dbErr;
       await fetchUsers();
@@ -443,11 +568,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       for (const [key, value] of Object.entries(serverPayload)) {
         await withAuthRetry(() =>
-          supabase.from('settings').upsert({ key, value: value as any, updated_at: new Date().toISOString() } as any)
+          supabase.from("settings").upsert({ key, value: value as any, updated_at: new Date().toISOString() } as any)
         );
       }
     } catch (error) {
-      console.error('Error updating settings:', error);
+      console.error("[settings] update error", error);
     }
 
     if (typeof nextTheme !== "undefined") {
@@ -459,11 +584,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const ensureAuth = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data?.session) {
+      await supabase.auth.refreshSession();
+    }
+    return true;
+  };
+
   const addTask = async (task: Task) => {
     try {
+      await ensureAuth();
       const safe = normalizeTask(task);
       const { error } = await withAuthRetry(() =>
-        supabase.from('tasks').insert({
+        supabase.from("tasks").insert({
           id: safe.id, title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
           assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
           deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
@@ -474,50 +608,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
       if (error) throw error;
       await fetchTasks();
-    } catch (error) { console.error('Error adding task to database:', error); }
+    } catch (error) { console.error("[tasks] insert error", error); }
   };
 
   const updateTask = async (task: Task) => {
     try {
+      await ensureAuth();
       const safe = normalizeTask({ ...task, updatedAt: new Date().toISOString() });
       const { error } = await withAuthRetry(() =>
-        supabase.from('tasks').update({
+        supabase.from("tasks").update({
           title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
           assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
           deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
           started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
           picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
           completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null, updated_at: new Date().toISOString(),
-        } as any).eq('id', safe.id)
+        } as any).eq("id", safe.id)
       );
       if (error) throw error;
       await fetchTasks();
-    } catch (error) { console.error('Error updating task in database:', error); }
+    } catch (error) { console.error("[tasks] update error", error); }
   };
 
   const deleteTask = async (id: string) => {
     try {
+      await ensureAuth();
       const { error } = await withAuthRetry(() =>
-        supabase.from('tasks').delete().eq('id', id)
+        supabase.from("tasks").delete().eq("id", id)
       );
       if (error) throw error;
       await fetchTasks();
-    } catch (error) { console.error('Error deleting task from database:', error); }
+    } catch (error) { console.error("[tasks] delete error", error); }
   };
 
-  /** ---- Realtime management ---- */
+  /** ---------------- Realtime ---------------- */
   const resetRealtimeSubscription = () => {
     if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null; }
     const channel = supabase
-      .channel('praxis-tasks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => fetchTasks())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => fetchUsers())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => fetchSettings())
+      .channel("praxis-tasks")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchTasks())
+      .on("postgres_changes", { event: "*", schema: "public", table: "users" }, () => fetchUsers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => fetchSettings())
       .subscribe();
     realtimeRef.current = channel;
   };
 
-  // ---- Auto-logout on inactivity ----
+  /** ---------------- Auto logout ---------------- */
   const inactivityTimerRef = useRef<number | null>(null);
   const activityHandlerRef = useRef<(() => void) | null>(null);
 
@@ -531,28 +667,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     clearInactivityTimer();
     if (!currentUser || !settings.autoLogout) return;
     const ms = Math.max(1, Number(settings.autoLogoutTime || 15)) * 60 * 1000;
-    inactivityTimerRef.current = window.setTimeout(() => {
-      console.log('[autoLogout] Logging out due to inactivity');
-      logout();
-    }, ms);
+    inactivityTimerRef.current = window.setTimeout(() => { logout(); }, ms);
   };
   const bindActivityListeners = () => {
     const reset = () => startInactivityTimer();
     activityHandlerRef.current = reset;
-    window.addEventListener('mousemove', reset);
-    window.addEventListener('keydown', reset);
-    window.addEventListener('click', reset);
-    window.addEventListener('touchstart', reset);
-    window.addEventListener('visibilitychange', reset);
+    window.addEventListener("mousemove", reset);
+    window.addEventListener("keydown", reset);
+    window.addEventListener("click", reset);
+    window.addEventListener("touchstart", reset);
+    window.addEventListener("visibilitychange", reset);
   };
   const unbindActivityListeners = () => {
     if (!activityHandlerRef.current) return;
     const reset = activityHandlerRef.current;
-    window.removeEventListener('mousemove', reset);
-    window.removeEventListener('keydown', reset);
-    window.removeEventListener('click', reset);
-    window.removeEventListener('touchstart', reset);
-    window.removeEventListener('visibilitychange', reset);
+    window.removeEventListener("mousemove", reset);
+    window.removeEventListener("keydown", reset);
+    window.removeEventListener("click", reset);
+    window.removeEventListener("touchstart", reset);
+    window.removeEventListener("visibilitychange", reset);
     activityHandlerRef.current = null;
   };
 
@@ -570,22 +703,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser?.id, settings.autoLogout, settings.autoLogoutTime]);
 
-  // Init
+  // Init + auth events
   useEffect(() => {
     let unsub: (() => void) | null = null;
     (async () => {
       const { data } = await supabase.auth.getSession();
+      await loadCurrentUserFromSession(data?.session ?? null);
       if (data?.session) { await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]); }
       else { await fetchSettings(); }
       resetRealtimeSubscription();
 
-      const sub = supabase.auth.onAuthStateChange(async (event) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      const sub = supabase.auth.onAuthStateChange(async (event, newSession) => {
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          await loadCurrentUserFromSession(newSession ?? null);
           await new Promise(r => setTimeout(r, 60));
           await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
           resetRealtimeSubscription();
         }
-        if (event === 'SIGNED_OUT') {
+        if (event === "SIGNED_OUT") {
           setCurrentUser(null); setIsManager(false); setUsers([]); setTasks([]);
           resetRealtimeSubscription();
         }
@@ -603,7 +738,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // refresh bij user switch
+  // Keep auth fresh periodically
+  useAuthKeepAlive(true);
+
+  // Refresh data bij user switch
   useEffect(() => {
     if (currentUser) {
       (async () => {
@@ -625,7 +763,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-/** ---- Hook ---- */
+/** ---------------- Hook ---------------- */
 export const useAppContext = () => {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useAppContext must be used within AppProvider");
