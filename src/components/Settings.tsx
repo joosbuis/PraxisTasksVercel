@@ -178,10 +178,8 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
   const copyTempCode = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
-      // kleine visuele feedback
       alert(tt.copied);
     } catch {
-      // fallback
       const ta = document.createElement("textarea");
       ta.value = code;
       document.body.appendChild(ta);
@@ -254,12 +252,14 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
               </div>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   className={`btn ${settings.theme === "light" ? "btn-primary" : "btn-secondary"}`}
                   onClick={() => setTheme("light")}
                 >
                   {tt.light}
                 </button>
                 <button
+                  type="button"
                   className={`btn ${settings.theme === "dark" ? "btn-primary" : "btn-secondary"}`}
                   onClick={() => setTheme("dark")}
                 >
@@ -323,7 +323,7 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
                 <Users className="w-5 h-5" />
                 <h2 className="text-lg font-semibold">{tt.userManagement}</h2>
               </div>
-              <button className="btn-primary" onClick={() => setShowCreateUser(true)}>
+              <button type="button" className="btn-primary" onClick={() => setShowCreateUser(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 {tt.newUser}
               </button>
@@ -382,6 +382,7 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
                         <td className="py-2 px-3">
                           {tempCode ? (
                             <button
+                              type="button"
                               className="inline-flex items-center gap-2 px-2 py-1 text-xs rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
                               title={tt.copyCode}
                               onClick={() => copyTempCode(tempCode)}
@@ -396,12 +397,14 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-2">
                             <button
+                              type="button"
                               className="btn-secondary"
                               onClick={() => setShowUserEdit(u.id)}
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
+                              type="button"
                               className="btn-danger"
                               onClick={() => {
                                 if (u.id === currentUser.id) {
@@ -435,6 +438,7 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">{tt.newUser}</h2>
                 <button
+                  type="button"
                   onClick={() => setShowCreateUser(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -491,7 +495,7 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text sm font-medium text-gray-700 mb-2">
                     {tt.departments}
                   </label>
                   <div className="space-y-2">
@@ -529,38 +533,43 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
 
               <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
                 <button
+                  type="button"
                   onClick={() => setShowCreateUser(false)}
                   className="btn-secondary"
                 >
                   {tt.cancel}
                 </button>
-                <button onClick={async () => {
-                  if (!newUser.employeeNumber || !newUser.name) {
-                    alert("Vul alle verplichte velden in");
-                    return;
-                  }
-                  if (!newUser.boards.length) {
-                    alert("Selecteer minimaal één afdeling");
-                    return;
-                  }
-                  if (users.find((u) => u.employeeNumber === newUser.employeeNumber)) {
-                    alert("Dit personeelsnummer bestaat al");
-                    return;
-                  }
-                  const roleForApi: AnyRole = String(newUser.role) === "manager" ? "manager" : "user";
-                  const ok = await createUser({
-                    employeeNumber: newUser.employeeNumber.trim(),
-                    name: newUser.name.trim(),
-                    role: roleForApi as any,
-                    boards: newUser.boards,
-                  });
-                  if (ok) {
-                    setShowCreateUser(false);
-                    setNewUser({ employeeNumber: "", name: "", role: "user", boards: ["voorwinkel"] });
-                  } else {
-                    alert("Aanmaken mislukt (bestaat al of serverfout).");
-                  }
-                }} className="btn-primary">
+                <button
+                  onClick={async () => {
+                    if (!newUser.employeeNumber || !newUser.name) {
+                      alert("Vul alle verplichte velden in");
+                      return;
+                    }
+                    if (!newUser.boards.length) {
+                      alert("Selecteer minimaal één afdeling");
+                      return;
+                    }
+                    if (users.find((u) => u.employeeNumber === newUser.employeeNumber)) {
+                      alert("Dit personeelsnummer bestaat al");
+                      return;
+                    }
+                    const roleForApi: AnyRole = String(newUser.role) === "manager" ? "manager" : "user";
+                    const ok = await createUser({
+                      employeeNumber: newUser.employeeNumber.trim(),
+                      name: newUser.name.trim(),
+                      role: roleForApi as any,
+                      boards: newUser.boards,
+                    });
+                    if (ok) {
+                      setShowCreateUser(false);
+                      setNewUser({ employeeNumber: "", name: "", role: "user", boards: ["voorwinkel"] });
+                    } else {
+                      alert("Aanmaken mislukt (bestaat al of serverfout).");
+                    }
+                  }}
+                  className="btn-primary"
+                  type="button"
+                >
                   <UserPlus className="w-4 h-4 mr-2" />
                   {tt.create} {tt.users}
                 </button>
@@ -578,6 +587,7 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
                   {tt.edit} {tt.users}
                 </h2>
                 <button
+                  type="button"
                   onClick={() => setShowUserEdit(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -680,6 +690,7 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
                               {(user as any).temporaryCode}
                             </code>
                             <button
+                              type="button"
                               className="ml-auto btn-secondary text-xs py-1 px-2"
                               onClick={() => copyTempCode((user as any).temporaryCode)}
                             >
@@ -695,6 +706,7 @@ export default function Settings({ isPersonalOnly = false }: SettingsProps) {
 
               <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
                 <button
+                  type="button"
                   onClick={() => setShowUserEdit(null)}
                   className="btn-secondary"
                 >
