@@ -204,7 +204,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 value={employeeNumber}
                 onChange={(e) => setEmployeeNumber(e.target.value)}
                 className="input-field"
-                placeholder="1001"
+                placeholder="Voer hier je personeelsnummer in"
                 required
               />
             </div>
