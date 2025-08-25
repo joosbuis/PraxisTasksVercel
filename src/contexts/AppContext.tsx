@@ -40,156 +40,155 @@ export const defaultSettings: AppSettings = {
 };
 
 /* ---------------- i18n ---------------- */
-const i18n: Record<"nl" | "en", Record<string, string>> = {
-  nl: {
-    loginToAccount: "Log in op je account",
-    employeeNumber: "Personeelsnummer",
-    password: "Wachtwoord",
-    login: "Inloggen",
-    loading: "Bezig...",
-    loginError: "Er ging iets mis bij het inloggen",
-    passwordsNotMatch: "Wachtwoorden komen niet overeen",
-    passwordTooShort: "Wachtwoord is te kort",
-    settings: "Instellingen",
-    userManagement: "Gebruikersbeheer",
-    personalSettings: "Persoonlijke instellingen",
-    systemSettings: "Systeeminstellingen",
-    tasks: "Taken",
-    users: "Gebruikers",
-    newTask: "Nieuwe taak",
-    create: "Aanmaken",
-    save: "Opslaan",
-    cancel: "Annuleren",
-    close: "Sluiten",
-    confirm: "Bevestigen",
-    yes: "Ja",
-    delete: "Verwijderen",
-    edit: "Bewerken",
-    title: "Titel",
-    description: "Beschrijving",
-    priority: "Prioriteit",
-    assignedTo: "Toewijzen aan",
-    deadline: "Deadline",
-    statusTodo: "Te Doen",
-    statusNeedsPickup: "Taak oppakken",
-    statusInProgress: "Mee Bezig",
-    statusCompleted: "Afgerond",
-    manager: "Manager",
-    employee: "Medewerker",
-    role: "Rol",
-    name: "Naam",
-    departments: "Afdeling",
-    voorwinkel: "Voorwinkel",
-    achterwinkel: "Achterwinkel",
-    newUser: "Nieuwe gebruiker",
-    userCreated: "Gebruiker aangemaakt",
-    temporaryCode: "Eenmalige inlogcode",
-    firstLogin: "Eerste login",
-    low: "Laag",
-    medium: "Gemiddeld",
-    high: "Hoog",
-    theme: "Thema",
-    language: "Taal",
-    sound: "Geluid",
-    light: "Licht",
-    dark: "Donker",
-    auto: "Auto",
-    autoLogout: "Automatisch uitloggen",
-    autoLogoutTime: "Tijd tot automatisch uitloggen (min.)",
-    pushNotifications: "Push notificaties",
-    deadlineWarnings: "Deadline waarschuwingen",
-    days: "dagen",
-    taskReminders: "Taakherinneringen",
-    dailyReport: "Dagrapport",
-    weeklyReport: "Weekrapport",
-    totalTasks: "Totaal taken",
-    completed: "Afgerond",
-    overdueTasks: "Verlopen taken",
-    activeUsers: "Actieve gebruikers",
-    start: "Starten",
-    pause: "Pauzeren",
-    pickup: "Oppakken",
-    complete: "Afronden",
-    welcome: "Welkom",
-    loginSuccess: "Succesvol ingelogd",
-    copyCode: "Kopieer code",
-    copied: "Gekopieerd!",
-  },
-  en: {
-    loginToAccount: "Log in to your account",
-    employeeNumber: "Employee number",
-    password: "Password",
-    login: "Log in",
-    loading: "Loading...",
-    loginError: "Something went wrong while logging in",
-    passwordsNotMatch: "Passwords do not match",
-    passwordTooShort: "Password is too short",
-    settings: "Settings",
-    userManagement: "User management",
-    personalSettings: "Personal settings",
-    systemSettings: "System settings",
-    tasks: "Tasks",
-    users: "Users",
-    newTask: "New task",
-    create: "Create",
-    save: "Save",
-    cancel: "Cancel",
-    close: "Close",
-    confirm: "Confirm",
-    yes: "Yes",
-    delete: "Delete",
-    edit: "Edit",
-    title: "Title",
-    description: "Description",
-    priority: "Priority",
-    assignedTo: "Assign to",
-    deadline: "Deadline",
-    statusTodo: "To do",
-    statusNeedsPickup: "Pick up task",
-    statusInProgress: "In progress",
-    statusCompleted: "Completed",
-    manager: "Manager",
-    employee: "Employee",
-    role: "Role",
-    name: "Name",
-    departments: "Department",
-    voorwinkel: "Front store",
-    achterwinkel: "Back store",
-    newUser: "New user",
-    userCreated: "User created",
-    temporaryCode: "One-time code",
-    firstLogin: "First login",
-    low: "Low",
-    medium: "Medium",
-    high: "High",
-    theme: "Theme",
-    language: "Language",
-    sound: "Sound",
-    light: "Light",
-    dark: "Dark",
-    auto: "Auto",
-    autoLogout: "Auto logout",
-    autoLogoutTime: "Auto logout time (min.)",
-    pushNotifications: "Push notifications",
-    deadlineWarnings: "Deadline warnings",
-    days: "days",
-    taskReminders: "Task reminders",
-    dailyReport: "Daily report",
-    weeklyReport: "Weekly report",
-    totalTasks: "Total tasks",
-    completed: "Completed",
-    overdueTasks: "Overdue tasks",
-    activeUsers: "Active users",
-    start: "Start",
-    pause: "Pause",
-    pickup: "Pick up",
-    complete: "Complete",
-    welcome: "Welcome",
-    loginSuccess: "Logged in successfully",
-    copyCode: "Copy code",
-    copied: "Copied!",
-  },
-};
+const I18N_NL = {
+  loginToAccount: "Log in op je account",
+  employeeNumber: "Personeelsnummer",
+  password: "Wachtwoord",
+  login: "Inloggen",
+  loading: "Bezig...",
+  loginError: "Er ging iets mis bij het inloggen",
+  passwordsNotMatch: "Wachtwoorden komen niet overeen",
+  passwordTooShort: "Wachtwoord is te kort",
+  settings: "Instellingen",
+  userManagement: "Gebruikersbeheer",
+  personalSettings: "Persoonlijke instellingen",
+  systemSettings: "Systeeminstellingen",
+  tasks: "Taken",
+  users: "Gebruikers",
+  newTask: "Nieuwe taak",
+  create: "Aanmaken",
+  save: "Opslaan",
+  cancel: "Annuleren",
+  close: "Sluiten",
+  confirm: "Bevestigen",
+  yes: "Ja",
+  delete: "Verwijderen",
+  edit: "Bewerken",
+  title: "Titel",
+  description: "Beschrijving",
+  priority: "Prioriteit",
+  assignedTo: "Toewijzen aan",
+  deadline: "Deadline",
+  statusTodo: "Te Doen",
+  statusNeedsPickup: "Taak oppakken",
+  statusInProgress: "Mee Bezig",
+  statusCompleted: "Afgerond",
+  manager: "Manager",
+  employee: "Medewerker",
+  role: "Rol",
+  name: "Naam",
+  departments: "Afdeling",
+  voorwinkel: "Voorwinkel",
+  achterwinkel: "Achterwinkel",
+  newUser: "Nieuwe gebruiker",
+  userCreated: "Gebruiker aangemaakt",
+  temporaryCode: "Eenmalige inlogcode",
+  firstLogin: "Eerste login",
+  low: "Laag",
+  medium: "Gemiddeld",
+  high: "Hoog",
+  theme: "Thema",
+  language: "Taal",
+  sound: "Geluid",
+  light: "Licht",
+  dark: "Donker",
+  auto: "Auto",
+  autoLogout: "Automatisch uitloggen",
+  autoLogoutTime: "Tijd tot automatisch uitloggen (min.)",
+  pushNotifications: "Push notificaties",
+  deadlineWarnings: "Deadline waarschuwingen",
+  days: "dagen",
+  taskReminders: "Taakherinneringen",
+  dailyReport: "Dagrapport",
+  weeklyReport: "Weekrapport",
+  totalTasks: "Totaal taken",
+  completed: "Afgerond",
+  overdueTasks: "Verlopen taken",
+  activeUsers: "Actieve gebruikers",
+  start: "Starten",
+  pause: "Pauzeren",
+  pickup: "Oppakken",
+  complete: "Afronden",
+  welcome: "Welkom",
+  loginSuccess: "Succesvol ingelogd",
+  copyCode: "Kopieer code",
+  copied: "Gekopieerd!",
+} as const;
+
+const I18N_EN: typeof I18N_NL = {
+  loginToAccount: "Log in to your account",
+  employeeNumber: "Employee number",
+  password: "Password",
+  login: "Log in",
+  loading: "Loading...",
+  loginError: "Something went wrong while logging in",
+  passwordsNotMatch: "Passwords do not match",
+  passwordTooShort: "Password is too short",
+  settings: "Settings",
+  userManagement: "User management",
+  personalSettings: "Personal settings",
+  systemSettings: "System settings",
+  tasks: "Tasks",
+  users: "Users",
+  newTask: "New task",
+  create: "Create",
+  save: "Save",
+  cancel: "Cancel",
+  close: "Close",
+  confirm: "Confirm",
+  yes: "Yes",
+  delete: "Delete",
+  edit: "Edit",
+  title: "Title",
+  description: "Description",
+  priority: "Priority",
+  assignedTo: "Assign to",
+  deadline: "Deadline",
+  statusTodo: "To do",
+  statusNeedsPickup: "Pick up task",
+  statusInProgress: "In progress",
+  statusCompleted: "Completed",
+  manager: "Manager",
+  employee: "Employee",
+  role: "Role",
+  name: "Name",
+  departments: "Department",
+  voorwinkel: "Front store",
+  achterwinkel: "Back store",
+  newUser: "New user",
+  userCreated: "User created",
+  temporaryCode: "One-time code",
+  firstLogin: "First login",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  theme: "Theme",
+  language: "Language",
+  sound: "Sound",
+  light: "Light",
+  dark: "Dark",
+  auto: "Auto",
+  autoLogout: "Auto logout",
+  autoLogoutTime: "Auto logout time (min.)",
+  pushNotifications: "Push notifications",
+  deadlineWarnings: "Deadline warnings",
+  days: "days",
+  taskReminders: "Task reminders",
+  dailyReport: "Daily report",
+  weeklyReport: "Weekly report",
+  totalTasks: "Total tasks",
+  completed: "Completed",
+  overdueTasks: "Overdue tasks",
+  activeUsers: "Active users",
+  start: "Start",
+  pause: "Pause",
+  pickup: "Pick up",
+  complete: "Complete",
+  welcome: "Welcome",
+  loginSuccess: "Logged in successfully",
+  copyCode: "Copy code",
+  copied: "Copied!",
+} as const;
 
 /* ---------------- Local theme per user ---------------- */
 function getUserTheme(userId?: string): AppSettings["theme"] | null {
@@ -197,7 +196,7 @@ function getUserTheme(userId?: string): AppSettings["theme"] | null {
     if (!userId) return null;
     const key = `praxis:userTheme:${userId}`;
     const val = localStorage.getItem(key);
-    if (val === "light" || val === "dark" || val === "auto") return val as AppSettings["theme"];
+    if (val === "light" || val === "dark" || val === "auto") return val;
     return null;
   } catch { return null; }
 }
@@ -205,40 +204,31 @@ function setUserTheme(userId: string | undefined, theme: AppSettings["theme"]) {
   try { if (userId) localStorage.setItem(`praxis:userTheme:${userId}`, theme); } catch {}
 }
 
-/* ---------------- Types ---------------- */
-type NewUserInput = { employeeNumber: string; name: string; role: UserRole | "employee"; boards: BoardType[]; };
-type UpdateUserPatch = { name?: string; role?: UserRole | "employee"; boards?: BoardType[]; };
-type Thenable<T> = PromiseLike<T>;
-
-/* ---------------- Context shape (EXPORTED) ---------------- */
+/* ---------------- Context shape ---------------- */
 export type AppContextType = {
   currentUser: User | null;
   isManager: boolean;
   users: User[];
   tasks: Task[];
   settings: AppSettings;
-  t: Record<string, string>;
+  t: typeof I18N_NL;
   currentBoard: BoardType;
   setCurrentBoard: (b: BoardType) => void;
 
-  // auth
   login: (employeeNumber: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   setPassword: (userId: string, newPassword: string) => Promise<boolean>;
   consumeOneTimeCode: (employeeNumber: string, code: string) => Promise<User | null>;
 
-  // users
-  createUser: (u: NewUserInput) => Promise<boolean>;
-  updateUser: (id: string, patch: UpdateUserPatch) => Promise<boolean>;
+  createUser: (u: { employeeNumber: string; name: string; role: UserRole | "employee"; boards: BoardType[] }) => Promise<boolean>;
+  updateUser: (id: string, patch: { name?: string; role?: UserRole | "employee"; boards?: BoardType[] }) => Promise<boolean>;
   deleteUser: (id: string) => Promise<boolean>;
 
-  // tasks
   fetchTasks: () => Promise<void>;
   addTask: (t: Task) => Promise<void>;
   updateTask: (t: Task) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
 
-  // settings
   updateSettings: (next: Partial<AppSettings> | AppSettings) => Promise<void>;
 };
 
@@ -276,6 +266,7 @@ const normalizeTask = (x: any): Task => ({
   activities: Array.isArray(x?.activities) ? x?.activities : [],
 });
 
+type Thenable<T> = PromiseLike<T>;
 async function withAuthRetry<T = any>(op: () => Thenable<T>): Promise<T> {
   let res: any = await op();
   if (res?.error && (
@@ -313,9 +304,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const realtimeRef = useRef<RealtimeChannel | null>(null);
   const pollRef = useRef<number | null>(null);
 
-  const t = useMemo(() => i18n[settings.language] ?? i18n.nl, [settings.language]);
+  const t = useMemo(() => (settings.language === "en" ? I18N_EN : I18N_NL), [settings.language]);
 
-  // Thema & taal naar DOM, pas na settings-hydrate om flicker te voorkomen
+  // Thema & taal naar DOM pas na settings-hydrate ⇒ geen flicker
   useEffect(() => {
     if (!settingsHydrated) return;
     const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : (settings.theme || "light");
@@ -376,7 +367,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Map Auth→users row (via emailprefix of id)
+  // Auth→users mapping (eerst via employee_number uit email, fallback op id)
   const loadCurrentUserFromSession = async (session: Session | null) => {
     if (!session?.user) { setCurrentUser(null); setIsManager(false); return; }
     const email = session.user.email || "";
@@ -418,7 +409,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { data: userData } = await supabase.from("users").select("*").eq("employee_number", emp).maybeSingle();
       if (!userData) return false;
 
-      // Tijdelijke code? UI moet password-setup doen → return false
+      // Tijdelijke code? → UI gaat naar password-setup; hier dus false terug
       if (userData.is_first_login && userData.temporary_code === pwd) return false;
 
       if (!userData.is_first_login) {
@@ -497,7 +488,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   /* ---------- Users CRUD ---------- */
-  const createUser = async (u: NewUserInput) => {
+  const createUser = async (u: { employeeNumber: string; name: string; role: UserRole | "employee"; boards: BoardType[] }) => {
     try {
       const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
       const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -513,7 +504,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch { return false; }
   };
 
-  const updateUser = async (id: string, patch: UpdateUserPatch) => {
+  const updateUser = async (id: string, patch: { name?: string; role?: UserRole | "employee"; boards?: BoardType[] }) => {
     try {
       const updateData: any = {};
       if (patch.name) updateData.name = patch.name;
@@ -549,7 +540,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateSettings = async (next: Partial<AppSettings> | AppSettings) => {
     const merged = { ...settings, ...next };
     setSettings(merged);
-    // persist alle keys incl. language/theme
+
+    // Persist ALLE keys, incl. language & theme
     try {
       for (const [key, value] of Object.entries(merged)) {
         const res: any = await withAuthRetry(() =>
@@ -560,8 +552,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       console.error("[settings] update error", e);
     }
+
+    // Per-user theme override + DOM attribuut direct bijstellen
     if (typeof (merged as AppSettings).theme !== "undefined") {
       try { setUserTheme(currentUser?.id, (merged as AppSettings).theme); } catch {}
+      document.documentElement.setAttribute("data-theme", String((merged as AppSettings).theme));
+    }
+    if (typeof (merged as AppSettings).language !== "undefined") {
+      document.documentElement.setAttribute("lang", String((merged as AppSettings).language));
     }
   };
 
@@ -575,6 +573,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: safe.id, title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
           assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
           deadline: safe.deadline || null, activities: safe.activities,
+          started_by: safe.startedBy || null, started_by_name: safe.startedByName || null, started_at: safe.startedAt || null,
+          picked_up_by: safe.pickedUpBy || null, picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null,
+          completed_by: safe.completedBy || null, completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null,
         } as any)
       );
       if (res?.error) throw res.error;
@@ -591,6 +592,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
           assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
           deadline: safe.deadline || null, activities: safe.activities, updated_at: new Date().toISOString(),
+          started_by: safe.startedBy || null, started_by_name: safe.startedByName || null, started_at: safe.startedAt || null,
+          picked_up_by: safe.pickedUpBy || null, picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null,
+          completed_by: safe.completedBy || null, completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null,
         } as any).eq("id", safe.id)
       );
       if (res?.error) throw res.error;
@@ -612,7 +616,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /* ---------- Realtime ---------- */
   const resetRealtimeSubscription = () => {
     if (realtimeRef.current) {
-      // don't return promise from cleanup; just fire-and-forget
       void supabase.removeChannel(realtimeRef.current);
       realtimeRef.current = null;
     }
@@ -668,7 +671,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     (async () => {
       const { data } = await supabase.auth.getSession();
       await loadCurrentUserFromSession(data?.session ?? null);
-      await fetchSettings();                      // eerst settings om flicker te vermijden
+      await fetchSettings(); // eerst settings om flicker te voorkomen
       if (data?.session) { await Promise.all([fetchUsers(), fetchTasks()]); }
       resetRealtimeSubscription();
 
@@ -691,7 +694,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Poll fallback (15s) als realtime niet vuurt
     pollRef.current = window.setInterval(() => { void fetchTasks(); }, 15000);
 
-    // refresh sessie bij terugkomen in tab / online
+    // Token refresh bij terugkomen / online
     const onFocus = async () => { await ensureAuth(); };
     const onVisible = () => { if (document.visibilityState === "visible") { void onFocus(); } };
     window.addEventListener("focus", onFocus);
@@ -708,18 +711,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // refresh data als user wisselt
+  // refresh data bij user switch
   useEffect(() => {
     if (currentUser) { (async () => { await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]); })(); }
   }, [currentUser?.id]);
 
   const value: AppContextType = {
-    currentUser, isManager, users, tasks, settings,
-    t: i18n[settings.language] ?? i18n.nl,
-    currentBoard, setCurrentBoard,
-    login, logout, setPassword, consumeOneTimeCode,
-    createUser, updateUser, deleteUser,
-    fetchTasks, addTask, updateTask, deleteTask,
+    currentUser,
+    isManager,
+    users,
+    tasks,
+    settings,
+    t,
+    currentBoard,
+    setCurrentBoard,
+    login,
+    logout,
+    setPassword,
+    consumeOneTimeCode,
+    createUser,
+    updateUser,
+    deleteUser,
+    fetchTasks,
+    addTask,
+    updateTask,
+    deleteTask,
     updateSettings,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
