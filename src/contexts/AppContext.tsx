@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Task, TaskStatus, User, UserRole, BoardType } from "../types";
 import { supabase } from "../lib/supabase";
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 
 /** ---- Types & defaults ---- */
 export interface AppSettings {
@@ -260,11 +260,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchTasks = async () => {
     try {
       const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
+      if (error) throw error;
       setTasks((data || []).map(normalizeTask));
     } catch (error) {
       console.error('Error fetching tasks from database:', error);
       setTasks([]);
+    }
+  };
+
+  // --- helper: load current user from Supabase Auth session ---
+  const loadCurrentUserFromSession = async (session: Session | null) => {
+    if (!session?.user?.id) return;
+    try {
+      const { data: u } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
+      if (u) {
+        const mapped: User = {
+          id: u.id,
+          employeeNumber: u.employee_number,
+          username: u.username,
+          name: u.name,
+          role: u.role as UserRole,
+          boards: Array.isArray(u.boards) ? u.boards : ["voorwinkel"],
+          isFirstLogin: !!u.is_first_login,
+        };
+        setCurrentUser(mapped);
+        setIsManager(u.role === "manager");
+      }
+    } catch (e) {
+      // ignore
     }
   };
 
@@ -288,13 +311,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
         if (authError) return false;
         if (authData.user) {
-          setCurrentUser({
-            id: authData.user.id, employeeNumber: userData.employee_number, username: userData.username,
-            name: userData.name, role: userData.role as UserRole,
-            boards: Array.isArray(userData.boards) ? userData.boards : ["voorwinkel"],
-            isFirstLogin: false,
-          });
-          setIsManager(userData.role === "manager");
+          await loadCurrentUserFromSession({ user: authData.user } as Session);
           await new Promise(r => setTimeout(r, 60));
           await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
           resetRealtimeSubscription();
@@ -339,12 +356,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const { data: freshUser } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
       if (freshUser) {
-        setCurrentUser({
-          id: freshUser.id, employeeNumber: freshUser.employee_number, username: freshUser.username,
-          name: freshUser.name, role: freshUser.role as UserRole,
+        const mapped: User = {
+          id: freshUser.id,
+          employeeNumber: freshUser.employee_number,
+          username: freshUser.username,
+          name: freshUser.name,
+          role: freshUser.role as UserRole,
           boards: Array.isArray(freshUser.boards) ? freshUser.boards : ["voorwinkel"],
           isFirstLogin: !!freshUser.is_first_login,
-        });
+        };
+        setCurrentUser(mapped);
         setIsManager(freshUser.role === "manager");
       }
       await new Promise(r => setTimeout(r, 60));
@@ -575,12 +596,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let unsub: (() => void) | null = null;
     (async () => {
       const { data } = await supabase.auth.getSession();
+      await loadCurrentUserFromSession(data?.session ?? null);
       if (data?.session) { await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]); }
       else { await fetchSettings(); }
       resetRealtimeSubscription();
 
-      const sub = supabase.auth.onAuthStateChange(async (event) => {
+      const sub = supabase.auth.onAuthStateChange(async (event, newSession) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await loadCurrentUserFromSession(newSession ?? null);
           await new Promise(r => setTimeout(r, 60));
           await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
           resetRealtimeSubscription();
