@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Task, TaskStatus, User, UserRole, BoardType } from "../types";
 import { supabase } from "../lib/supabase";
 import type { RealtimeChannel, Session } from "@supabase/supabase-js";
+import { Task, TaskStatus, User, UserRole, BoardType } from "../types";
 
-/** ---- Settings type ---- */
+/* ---------------- Settings ---------------- */
 export interface AppSettings {
   theme: "light" | "dark" | "auto";
   language: "nl" | "en";
@@ -21,7 +21,6 @@ export interface AppSettings {
   requireTaskApproval: boolean;
   maxTasksPerUser: number;
 }
-
 export const defaultSettings: AppSettings = {
   theme: "light",
   language: "nl",
@@ -40,7 +39,7 @@ export const defaultSettings: AppSettings = {
   maxTasksPerUser: 10,
 };
 
-/** ---- i18n ---- */
+/* ---------------- i18n ---------------- */
 const i18n: Record<"nl" | "en", Record<string, string>> = {
   nl: {
     loginToAccount: "Log in op je account",
@@ -49,6 +48,8 @@ const i18n: Record<"nl" | "en", Record<string, string>> = {
     login: "Inloggen",
     loading: "Bezig...",
     loginError: "Er ging iets mis bij het inloggen",
+    passwordsNotMatch: "Wachtwoorden komen niet overeen",
+    passwordTooShort: "Wachtwoord is te kort",
     settings: "Instellingen",
     userManagement: "Gebruikersbeheer",
     personalSettings: "Persoonlijke instellingen",
@@ -81,13 +82,36 @@ const i18n: Record<"nl" | "en", Record<string, string>> = {
     voorwinkel: "Voorwinkel",
     achterwinkel: "Achterwinkel",
     newUser: "Nieuwe gebruiker",
+    userCreated: "Gebruiker aangemaakt",
     temporaryCode: "Eenmalige inlogcode",
+    firstLogin: "Eerste login",
+    low: "Laag",
+    medium: "Gemiddeld",
+    high: "Hoog",
+    theme: "Thema",
+    language: "Taal",
+    sound: "Geluid",
     light: "Licht",
     dark: "Donker",
     auto: "Auto",
     autoLogout: "Automatisch uitloggen",
     autoLogoutTime: "Tijd tot automatisch uitloggen (min.)",
-    language: "Taal",
+    pushNotifications: "Push notificaties",
+    deadlineWarnings: "Deadline waarschuwingen",
+    days: "dagen",
+    taskReminders: "Taakherinneringen",
+    dailyReport: "Dagrapport",
+    weeklyReport: "Weekrapport",
+    totalTasks: "Totaal taken",
+    completed: "Afgerond",
+    overdueTasks: "Verlopen taken",
+    activeUsers: "Actieve gebruikers",
+    start: "Starten",
+    pause: "Pauzeren",
+    pickup: "Oppakken",
+    complete: "Afronden",
+    welcome: "Welkom",
+    loginSuccess: "Succesvol ingelogd",
     copyCode: "Kopieer code",
     copied: "Gekopieerd!",
   },
@@ -97,7 +121,9 @@ const i18n: Record<"nl" | "en", Record<string, string>> = {
     password: "Password",
     login: "Log in",
     loading: "Loading...",
-    loginError: "Something went wrong",
+    loginError: "Something went wrong while logging in",
+    passwordsNotMatch: "Passwords do not match",
+    passwordTooShort: "Password is too short",
     settings: "Settings",
     userManagement: "User management",
     personalSettings: "Personal settings",
@@ -126,45 +152,91 @@ const i18n: Record<"nl" | "en", Record<string, string>> = {
     employee: "Employee",
     role: "Role",
     name: "Name",
-    departments: "Departments",
+    departments: "Department",
     voorwinkel: "Front store",
     achterwinkel: "Back store",
     newUser: "New user",
-    temporaryCode: "Temporary code",
+    userCreated: "User created",
+    temporaryCode: "One-time code",
+    firstLogin: "First login",
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    theme: "Theme",
+    language: "Language",
+    sound: "Sound",
     light: "Light",
     dark: "Dark",
     auto: "Auto",
     autoLogout: "Auto logout",
     autoLogoutTime: "Auto logout time (min.)",
-    language: "Language",
+    pushNotifications: "Push notifications",
+    deadlineWarnings: "Deadline warnings",
+    days: "days",
+    taskReminders: "Task reminders",
+    dailyReport: "Daily report",
+    weeklyReport: "Weekly report",
+    totalTasks: "Total tasks",
+    completed: "Completed",
+    overdueTasks: "Overdue tasks",
+    activeUsers: "Active users",
+    start: "Start",
+    pause: "Pause",
+    pickup: "Pick up",
+    complete: "Complete",
+    welcome: "Welcome",
+    loginSuccess: "Logged in successfully",
     copyCode: "Copy code",
     copied: "Copied!",
   },
 };
 
-/** ---- Helpers ---- */
-const uuid = () => crypto.randomUUID();
-const normalizeTask = (x: any): Task => ({
-  id: String(x?.id ?? uuid()),
-  title: String(x?.title ?? ""),
-  status: ((): TaskStatus => {
-    const v = String(x?.status ?? "todo").toLowerCase();
-    if (v.includes("progress")) return "in-progress";
-    if (v.includes("completed") || v.includes("done")) return "completed";
-    if (v.includes("pickup")) return "needs-pickup";
-    return "todo";
-  })(),
-  createdAt: String(x?.created_at ?? new Date().toISOString()),
-  updatedAt: String(x?.updated_at ?? new Date().toISOString()),
-  description: x?.description ?? "",
-  priority: (["low", "medium", "high"].includes(x?.priority) ? x.priority : "medium") as any,
-  assignedTo: x?.assigned_to ?? "",
-  assignedToName: x?.assigned_to_name ?? "",
-  board: x?.board === "achterwinkel" ? "achterwinkel" : "voorwinkel",
-  activities: Array.isArray(x?.activities) ? x.activities : [],
-});
+/* ---------------- Local theme per user ---------------- */
+function getUserTheme(userId?: string): AppSettings["theme"] | null {
+  try {
+    if (!userId) return null;
+    const key = `praxis:userTheme:${userId}`;
+    const val = localStorage.getItem(key);
+    if (val === "light" || val === "dark" || val === "auto") return val as AppSettings["theme"];
+    return null;
+  } catch { return null; }
+}
+function setUserTheme(userId: string | undefined, theme: AppSettings["theme"]) {
+  try { if (userId) localStorage.setItem(`praxis:userTheme:${userId}`, theme); } catch {}
+}
 
-/** ---- Context ---- */
+/* ---------------- Types ---------------- */
+type NewUserInput = { employeeNumber: string; name: string; role: UserRole | "employee"; boards: BoardType[]; };
+type UpdateUserPatch = { name?: string; role?: UserRole | "employee"; boards?: BoardType[]; };
+
+type Thenable<T> = PromiseLike<T>;
+
+async function withAuthRetry<T = any>(op: () => Thenable<T>): Promise<T> {
+  let res: any = await op();
+  if (res?.error && (
+    res.error.status === 401 ||
+    res.error.status === 403 ||
+    String(res.error.code || "").toUpperCase().includes("JWT") ||
+    String(res.error.message || "").toLowerCase().includes("token") ||
+    String(res.error.message || "").toLowerCase().includes("session")
+  )) {
+    await supabase.auth.refreshSession();
+    res = await op();
+  }
+  return res as T;
+}
+
+async function ensureAuth() {
+  const { data } = await supabase.auth.getSession();
+  const exp = data?.session?.expires_at ? data.session.expires_at * 1000 : 0;
+  if (!data?.session || Date.now() > exp - 60_000) {
+    const { data: r } = await supabase.auth.refreshSession();
+    const token = r?.session?.access_token;
+    if (token) supabase.realtime.setAuth(token);
+  }
+}
+
+/* ---------------- Context shape ---------------- */
 interface AppContextType {
   currentUser: User | null;
   isManager: boolean;
@@ -172,119 +244,486 @@ interface AppContextType {
   tasks: Task[];
   settings: AppSettings;
   t: Record<string, string>;
+  currentBoard: BoardType;
+  setCurrentBoard: (b: BoardType) => void;
+
+  // auth
   login: (employeeNumber: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  setPassword: (userId: string, newPassword: string) => Promise<boolean>;
+  consumeOneTimeCode: (employeeNumber: string, code: string) => Promise<User | null>;
+
+  // users
+  createUser: (u: NewUserInput) => Promise<boolean>;
+  updateUser: (id: string, patch: UpdateUserPatch) => Promise<boolean>;
+  deleteUser: (id: string) => Promise<boolean>;
+
+  // tasks
   fetchTasks: () => Promise<void>;
   addTask: (t: Task) => Promise<void>;
   updateTask: (t: Task) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
-  updateSettings: (next: Partial<AppSettings>) => Promise<void>;
+
+  // settings
+  updateSettings: (next: Partial<AppSettings> | AppSettings) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-/** ---- Auth helpers ---- */
-async function ensureAuth() {
-  const { data } = await supabase.auth.getSession();
-  if (!data.session) await supabase.auth.refreshSession();
-}
+/* ---------------- Helpers ---------------- */
+const uuid = () => crypto.randomUUID();
+const normalizeTask = (x: any): Task => ({
+  id: String(x?.id ?? uuid()),
+  title: String(x?.title ?? ""),
+  status: ((): TaskStatus => {
+    const v = String(x?.status ?? "todo").toLowerCase();
+    if (v === "inprogress" || v === "in-progress") return "in-progress";
+    if (v === "done" || v === "completed") return "completed";
+    if (v.includes("pickup")) return "needs-pickup";
+    return "todo";
+  })(),
+  createdAt: String(x?.created_at ?? x?.createdAt ?? new Date().toISOString()),
+  updatedAt: String(x?.updated_at ?? x?.updatedAt ?? new Date().toISOString()),
+  description: typeof x?.description === "string" ? x.description : "",
+  priority: (["low","medium","high"].includes(String(x?.priority)) ? x.priority : "medium") as any,
+  assignedTo: typeof x?.assigned_to === "string" ? x.assigned_to : "",
+  assignedToName: typeof x?.assigned_to_name === "string" ? x.assigned_to_name : "",
+  startedBy: typeof x?.started_by === "string" ? x.started_by : undefined,
+  startedByName: typeof x?.started_by_name === "string" ? x.started_by_name : undefined,
+  startedAt: typeof x?.started_at === "string" ? x.started_at : undefined,
+  pickedUpBy: typeof x?.picked_up_by === "string" ? x.picked_up_by : undefined,
+  pickedUpByName: typeof x?.picked_up_by_name === "string" ? x.picked_up_by_name : undefined,
+  pickedUpAt: typeof x?.picked_up_at === "string" ? x.picked_up_at : undefined,
+  completedBy: typeof x?.completed_by === "string" ? x.completed_by : undefined,
+  completedByName: typeof x?.completed_by_name === "string" ? x.completed_by_name : undefined,
+  completedAt: typeof x?.completed_at === "string" ? x.completed_at : undefined,
+  board: (x?.board === "achterwinkel" ? "achterwinkel" : "voorwinkel") as BoardType,
+  deadline: typeof x?.deadline === "string" ? x.deadline : undefined,
+  activities: Array.isArray(x?.activities) ? x?.activities : [],
+});
 
+/* ---------------- Provider ---------------- */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isManager, setIsManager] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [settingsHydrated, setSettingsHydrated] = useState(false);
+  const [currentBoard, setCurrentBoard] = useState<BoardType>("voorwinkel");
+  const [tasks, setTasks] = useState<Task[]>([]);
+
   const realtimeRef = useRef<RealtimeChannel | null>(null);
+  const pollRef = useRef<number | null>(null);
 
   const t = useMemo(() => i18n[settings.language] ?? i18n.nl, [settings.language]);
 
-  /** --- Data fetchers --- */
+  // Thema & taal naar DOM, pas na settings-hydrate om flicker te voorkomen
+  useEffect(() => {
+    if (!settingsHydrated) return;
+    const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : (settings.theme || "light");
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.setAttribute("lang", settings.language || "nl");
+  }, [settingsHydrated, currentUser?.id, settings.theme, settings.language]);
+
+  /* ---------- Fetchers ---------- */
   const fetchUsers = async () => {
-    const { data } = await supabase.from("users").select("*");
-    setUsers(data || []);
-  };
-  const fetchSettings = async () => {
-    const { data } = await supabase.from("settings").select("key,value");
-    const obj: any = {};
-    (data || []).forEach((s: any) => (obj[s.key] = s.value));
-    setSettings({ ...defaultSettings, ...obj });
-  };
-  const fetchTasks = async () => {
-    const { data } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
-    setTasks((data || []).map(normalizeTask));
-  };
-
-  /** --- Auth --- */
-  const login = async (employeeNumber: string, password: string) => {
-    const { data: auth, error } = await supabase.auth.signInWithPassword({
-      email: `${employeeNumber}@praxis.local`,
-      password,
-    });
-    if (error || !auth.user) return false;
-    setCurrentUser({ id: auth.user.id, employeeNumber, role: "user", name: employeeNumber } as any);
-    return true;
-  };
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setCurrentUser(null);
-  };
-
-  /** --- Task mutations --- */
-  const addTask = async (task: Task) => {
-    await ensureAuth();
-    await supabase.from("tasks").insert(task as any);
-    await fetchTasks();
-  };
-  const updateTask = async (task: Task) => {
-    await ensureAuth();
-    await supabase.from("tasks").update(task as any).eq("id", task.id);
-    await fetchTasks();
-  };
-  const deleteTask = async (id: string) => {
-    await ensureAuth();
-    await supabase.from("tasks").delete().eq("id", id);
-    await fetchTasks();
-  };
-
-  /** --- Settings update --- */
-  const updateSettings = async (next: Partial<AppSettings>) => {
-    const merged = { ...settings, ...next };
-    setSettings(merged);
-    for (const [k, v] of Object.entries(next)) {
-      await supabase.from("settings").upsert({ key: k, value: v });
+    try {
+      const { data, error } = await supabase.from("users").select("*");
+      if (error) throw error;
+      const normalized: User[] = (data || []).map((u: any) => ({
+        id: u.id,
+        employeeNumber: u.employee_number,
+        username: u.username,
+        name: u.name,
+        role: u.role as UserRole,
+        boards: Array.isArray(u.boards) ? u.boards : ["voorwinkel"],
+        isFirstLogin: u.is_first_login,
+        temporaryCode: u.temporary_code,
+      }));
+      setUsers(normalized);
+    } catch (e) {
+      console.error("[users] fetch error", e);
+      setUsers([]);
     }
   };
 
-  /** --- Realtime --- */
-  useEffect(() => {
-    if (realtimeRef.current) supabase.removeChannel(realtimeRef.current);
-    const ch = supabase
-      .channel("main")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, fetchTasks)
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase.from("settings").select("key, value");
+      if (error) throw error;
+      const obj: Record<string, any> = {};
+      (data || []).forEach((s: any) => { obj[s.key] = s.value; });
+      const merged: AppSettings = {
+        ...defaultSettings, ...obj,
+        theme: obj.theme === "dark" ? "dark" : obj.theme === "auto" ? "auto" : "light",
+        language: obj.language === "en" ? "en" : "nl",
+      };
+      const effectiveTheme = currentUser ? (getUserTheme(currentUser.id) || merged.theme) : merged.theme;
+      setSettings({ ...merged, theme: effectiveTheme });
+      setSettingsHydrated(true);
+    } catch (e) {
+      console.error("[settings] fetch error", e);
+      setSettingsHydrated(true);
+    }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      setTasks((data || []).map(normalizeTask));
+    } catch (e) {
+      console.error("[tasks] fetch error", e);
+      setTasks([]);
+    }
+  };
+
+  // Map Auth→users row (stevig: via emailprefix of id)
+  const loadCurrentUserFromSession = async (session: Session | null) => {
+    if (!session?.user) { setCurrentUser(null); setIsManager(false); return; }
+    const email = session.user.email || "";
+    const emp = email.includes("@") ? email.split("@")[0] : "";
+    try {
+      let u: any = null;
+      if (emp) {
+        const { data } = await supabase.from("users").select("*").eq("employee_number", emp).maybeSingle();
+        u = data;
+      }
+      if (!u) {
+        const { data } = await supabase.from("users").select("*").eq("id", session.user.id).maybeSingle();
+        u = data;
+      }
+      if (u) {
+        const mapped: User = {
+          id: session.user.id,
+          employeeNumber: u.employee_number,
+          username: u.username,
+          name: u.name,
+          role: u.role as UserRole,
+          boards: Array.isArray(u.boards) ? u.boards : ["voorwinkel"],
+          isFirstLogin: !!u.is_first_login,
+        };
+        setCurrentUser(mapped);
+        setIsManager(u.role === "manager");
+      } else {
+        setCurrentUser(null);
+        setIsManager(false);
+      }
+    } catch {/* ignore */}
+  };
+
+  /* ---------- Auth ---------- */
+  const login = async (employeeNumber: string, password: string) => {
+    try {
+      const emp = (employeeNumber ?? "").trim().replace(/"/g, "");
+      const pwd = (password ?? "").trim();
+      const { data: userData } = await supabase.from("users").select("*").eq("employee_number", emp).maybeSingle();
+      if (!userData) return false;
+
+      // Tijdelijke code? UI moet password-setup doen → return false
+      if (userData.is_first_login && userData.temporary_code === pwd) return false;
+
+      if (!userData.is_first_login) {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: `${emp}@praxis.local`, password: pwd,
+        });
+        if (authError) return false;
+        if (authData.user) {
+          await loadCurrentUserFromSession({ user: authData.user } as Session);
+          await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
+          resetRealtimeSubscription();
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try { await supabase.auth.signOut(); } catch {}
+    setCurrentUser(null); setIsManager(false);
+    setUsers([]); setTasks([]);
+    resetRealtimeSubscription();
+  };
+
+  const setPassword = async (userId: string, newPassword: string) => {
+    try {
+      if (!newPassword || newPassword.trim().length < 6) return false;
+      const { data: userData } = await supabase.from("users").select("employee_number").eq("id", userId).maybeSingle();
+      if (!userData) return false;
+      const email = `${userData.employee_number}@praxis.local`;
+
+      const { error: signUpError } = await supabase.auth.signUp({ email, password: newPassword.trim() });
+      if (signUpError) {
+        const status = (signUpError as any).status;
+        const code = (signUpError as any).code || (signUpError as any).message;
+        if (status === 422 && String(code).includes("weak_password")) return false;
+        if (status === 422 && String(code).includes("user_already_exists")) {
+          const { error: authErr2 } = await supabase.auth.signInWithPassword({ email, password: newPassword.trim() });
+          if (authErr2) return false;
+        } else { return false; }
+      }
+      const res: any = await withAuthRetry(() =>
+        supabase.from("users").update({
+          is_first_login: false, temporary_code: null, updated_at: new Date().toISOString()
+        } as any).eq("id", userId)
+      );
+      if (res?.error) return false;
+
+      await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
+      resetRealtimeSubscription();
+      return true;
+    } catch { return false; }
+  };
+
+  const consumeOneTimeCode = async (employeeNumber: string, code: string): Promise<User | null> => {
+    try {
+      const emp = (employeeNumber ?? "").trim().replace(/"/g, "");
+      const one = (code ?? "").trim();
+      const { data, error } = await supabase.rpc("consume_temp_code", { p_employee_number: emp, p_code: one });
+      if (error || !data) return null;
+      const u: User = {
+        id: (data as any).id,
+        employeeNumber: (data as any).employee_number,
+        username: (data as any).username,
+        name: (data as any).name,
+        role: (data as any).role as UserRole,
+        boards: Array.isArray((data as any).boards) ? (data as any).boards : ["voorwinkel"],
+        isFirstLogin: (data as any).is_first_login,
+      };
+      await fetchUsers();
+      return u;
+    } catch { return null; }
+  };
+
+  /* ---------- Users CRUD ---------- */
+  const createUser = async (u: NewUserInput) => {
+    try {
+      const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
+      const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const res: any = await withAuthRetry(() =>
+        supabase.from("users").insert({
+          employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
+          temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
+        } as any)
+      );
+      if (res?.error) throw res.error;
+      await fetchUsers();
+      return true;
+    } catch { return false; }
+  };
+
+  const updateUser = async (id: string, patch: UpdateUserPatch) => {
+    try {
+      const updateData: any = {};
+      if (patch.name) updateData.name = patch.name;
+      if (patch.role) updateData.role = String(patch.role).toLowerCase() === "manager" ? "manager" : "user";
+      if (patch.boards) updateData.boards = patch.boards;
+      updateData.updated_at = new Date().toISOString();
+
+      const res: any = await withAuthRetry(() =>
+        supabase.from("users").update(updateData).eq("id", id)
+      );
+      if (res?.error) throw res.error;
+      await fetchUsers();
+      return true;
+    } catch { return false; }
+  };
+
+  const deleteUser = async (id: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("delete-user", { body: { id } });
+      if (!error) { await fetchUsers(); return true; }
+    } catch {}
+    try {
+      const res: any = await withAuthRetry(() =>
+        supabase.from("users").delete().eq("id", id)
+      );
+      if (res?.error) throw res.error;
+      await fetchUsers();
+      return true;
+    } catch { return false; }
+  };
+
+  /* ---------- Settings update ---------- */
+  const updateSettings = async (next: Partial<AppSettings> | AppSettings) => {
+    const merged = { ...settings, ...next };
+    setSettings(merged);
+    // persist alle keys incl. language/theme
+    try {
+      for (const [key, value] of Object.entries(merged)) {
+        const res: any = await withAuthRetry(() =>
+          supabase.from("settings").upsert({ key, value: value as any, updated_at: new Date().toISOString() } as any)
+        );
+        if (res?.error) throw res.error;
+      }
+    } catch (e) {
+      console.error("[settings] update error", e);
+    }
+    if (typeof (merged as AppSettings).theme !== "undefined") {
+      try { setUserTheme(currentUser?.id, (merged as AppSettings).theme); } catch {}
+    }
+  };
+
+  /* ---------- Tasks CRUD ---------- */
+  const addTask = async (task: Task) => {
+    try {
+      await ensureAuth();
+      const safe = normalizeTask(task);
+      const res: any = await withAuthRetry(() =>
+        supabase.from("tasks").insert({
+          id: safe.id, title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
+          assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
+          deadline: safe.deadline || null, activities: safe.activities,
+        } as any)
+      );
+      if (res?.error) throw res.error;
+      await fetchTasks();
+    } catch (e) { console.error("[tasks] insert error", e); }
+  };
+
+  const updateTask = async (task: Task) => {
+    try {
+      await ensureAuth();
+      const safe = normalizeTask({ ...task, updatedAt: new Date().toISOString() });
+      const res: any = await withAuthRetry(() =>
+        supabase.from("tasks").update({
+          title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
+          assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
+          deadline: safe.deadline || null, activities: safe.activities, updated_at: new Date().toISOString(),
+        } as any).eq("id", safe.id)
+      );
+      if (res?.error) throw res.error;
+      await fetchTasks();
+    } catch (e) { console.error("[tasks] update error", e); }
+  };
+
+  const deleteTask = async (id: string) => {
+    try {
+      await ensureAuth();
+      const res: any = await withAuthRetry(() =>
+        supabase.from("tasks").delete().eq("id", id)
+      );
+      if (res?.error) throw res.error;
+      await fetchTasks();
+    } catch (e) { console.error("[tasks] delete error", e); }
+  };
+
+  /* ---------- Realtime ---------- */
+  const resetRealtimeSubscription = () => {
+    if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null; }
+    const channel = supabase
+      .channel("praxis-tasks")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchTasks())
+      .on("postgres_changes", { event: "*", schema: "public", table: "users" }, () => fetchUsers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => fetchSettings())
       .subscribe();
-    realtimeRef.current = ch;
-    return () => supabase.removeChannel(ch);
-  }, []);
+    realtimeRef.current = channel;
+  };
 
-  /** --- Init --- */
+  /* ---------- Auto logout ---------- */
+  const inactivityTimerRef = useRef<number | null>(null);
+  const activityHandlerRef = useRef<(() => void) | null>(null);
+  const clearInactivityTimer = () => { if (inactivityTimerRef.current) { clearTimeout(inactivityTimerRef.current); inactivityTimerRef.current = null; } };
+  const startInactivityTimer = () => {
+    clearInactivityTimer();
+    if (!currentUser || !settings.autoLogout) return;
+    const ms = Math.max(1, Number(settings.autoLogoutTime || 15)) * 60 * 1000;
+    inactivityTimerRef.current = window.setTimeout(() => { logout(); }, ms);
+  };
+  const bindActivity = () => {
+    const reset = () => startInactivityTimer();
+    activityHandlerRef.current = reset;
+    window.addEventListener("mousemove", reset);
+    window.addEventListener("keydown", reset);
+    window.addEventListener("click", reset);
+    window.addEventListener("touchstart", reset);
+    window.addEventListener("visibilitychange", reset);
+  };
+  const unbindActivity = () => {
+    if (!activityHandlerRef.current) return;
+    const reset = activityHandlerRef.current;
+    window.removeEventListener("mousemove", reset);
+    window.removeEventListener("keydown", reset);
+    window.removeEventListener("click", reset);
+    window.removeEventListener("touchstart", reset);
+    window.removeEventListener("visibilitychange", reset);
+    activityHandlerRef.current = null;
+  };
   useEffect(() => {
-    fetchUsers();
-    fetchSettings();
-    fetchTasks();
+    if (currentUser && settings.autoLogout) {
+      bindActivity(); startInactivityTimer();
+      return () => { unbindActivity(); clearInactivityTimer(); };
+    } else { unbindActivity(); clearInactivityTimer(); }
+  }, [currentUser?.id, settings.autoLogout, settings.autoLogoutTime]);
+
+  /* ---------- Auth events & init ---------- */
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      await loadCurrentUserFromSession(data?.session ?? null);
+      await fetchSettings();                      // eerst settings om flicker te vermijden
+      if (data?.session) { await Promise.all([fetchUsers(), fetchTasks()]); }
+      resetRealtimeSubscription();
+
+      const sub = supabase.auth.onAuthStateChange(async (event, newSession) => {
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          const token = newSession?.access_token;
+          if (token) supabase.realtime.setAuth(token);
+          await loadCurrentUserFromSession(newSession ?? null);
+          await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
+          resetRealtimeSubscription();
+        }
+        if (event === "SIGNED_OUT") {
+          setCurrentUser(null); setIsManager(false); setUsers([]); setTasks([]);
+          resetRealtimeSubscription();
+        }
+      });
+      unsub = () => sub.data.subscription.unsubscribe();
+    })();
+
+    // Poll fallback (15s) als realtime niet vuurt
+    pollRef.current = window.setInterval(() => { fetchTasks(); }, 15000);
+
+    // refresh sessie bij terugkomen in tab / online
+    const onFocus = async () => { await ensureAuth(); };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
+    window.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") onFocus(); });
+
+    return () => {
+      if (unsub) unsub();
+      if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null; }
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
+      window.removeEventListener("visibilitychange", () => {});
+    };
   }, []);
 
-  return (
-    <AppContext.Provider
-      value={{ currentUser, isManager, users, tasks, settings, t, login, logout, fetchTasks, addTask, updateTask, deleteTask, updateSettings }}
-    >
-      {children}
-    </AppContext.Provider>
-  );
+  // refresh data als user wisselt
+  useEffect(() => {
+    if (currentUser) { (async () => { await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]); })(); }
+  }, [currentUser?.id]);
+
+  const value: AppContextType = {
+    currentUser, isManager, users, tasks, settings, t,
+    currentBoard, setCurrentBoard,
+    login, logout, setPassword, consumeOneTimeCode,
+    createUser, updateUser, deleteUser,
+    fetchTasks, addTask, updateTask, deleteTask,
+    updateSettings,
+  };
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-export const useApp = () => {
+/* ---------------- Hook ---------------- */
+export const useAppContext = () => {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used in provider");
+  if (!ctx) throw new Error("useAppContext must be used within AppProvider");
   return ctx;
 };
+export const useApp = useAppContext;
