@@ -19,7 +19,7 @@ import {
 import { useApp, AppSettings } from "../contexts/AppContext";
 import { BoardType, UserRole } from "../types";
 
-// --- Fallback labels ---
+// --- Fallback labels (veilig als vertalingen ontbreken) ---
 const withFallbacks = (t: any) => ({
   settings: t?.settings ?? "Instellingen",
   userManagement: t?.userManagement ?? "Gebruikersbeheer",
@@ -57,13 +57,14 @@ const withFallbacks = (t: any) => ({
   autoLogoutTime: t?.autoLogoutTime ?? "Tijd tot automatisch uitloggen (min.)",
 });
 
+// Type die zowel 'user' (backend) als 'employee' (oude types) accepteert
 type AnyRole = UserRole | "user";
 
-export interface SettingsProps {
+interface SettingsProps {
   isPersonalOnly?: boolean;
 }
 
-const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
+export default function Settings({ isPersonalOnly = false }: SettingsProps) {
   const {
     currentUser,
     users,
@@ -97,14 +98,13 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
     );
   }
 
-  // Helpers
+  // ====== Helpers ======
   const setTheme = (theme: AppSettings["theme"]) => {
     updateSettings({ theme });
     document.documentElement.setAttribute("data-theme", theme);
   };
   const setLanguage = (language: AppSettings["language"]) => {
     updateSettings({ language });
-    document.documentElement.setAttribute("lang", language);
   };
 
   const taskStats = useMemo(() => {
@@ -127,7 +127,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
     return { totalUsers, activeUsers, managers, employees };
   }, [users]);
 
-  // Users UI state
+  // ====== Gebruikersbeheer state ======
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<AnyRole | "all">("all");
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -159,6 +159,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
   const toggleBoardIn = (arr: BoardType[], b: BoardType) =>
     arr.includes(b) ? arr.filter((x) => x !== b) : [...arr, b];
 
+  // ====== Acties: gebruikersbeheer ======
   const handleUserDelete = async (id: string) => {
     const user = users.find((u) => u.id === id);
     if (!user) return;
@@ -174,6 +175,24 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
     }
   };
 
+  const copyTempCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      // kleine visuele feedback
+      alert(tt.copied);
+    } catch {
+      // fallback
+      const ta = document.createElement("textarea");
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      alert(tt.copied);
+    }
+  };
+
+  // ====== Render ======
   return (
     <div className="flex-1 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
@@ -227,7 +246,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
           </div>
 
           <div className="space-y-6">
-            {/* Thema */}
+            {/* Thema (zonder 'Auto') */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Palette className="w-4 h-4" />
@@ -235,14 +254,12 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
               </div>
               <div className="flex gap-2">
                 <button
-                  type="button"
                   className={`btn ${settings.theme === "light" ? "btn-primary" : "btn-secondary"}`}
                   onClick={() => setTheme("light")}
                 >
                   {tt.light}
                 </button>
                 <button
-                  type="button"
                   className={`btn ${settings.theme === "dark" ? "btn-primary" : "btn-secondary"}`}
                   onClick={() => setTheme("dark")}
                 >
@@ -306,7 +323,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                 <Users className="w-5 h-5" />
                 <h2 className="text-lg font-semibold">{tt.userManagement}</h2>
               </div>
-              <button className="btn-primary" type="button" onClick={() => setShowCreateUser(true)}>
+              <button className="btn-primary" onClick={() => setShowCreateUser(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 {tt.newUser}
               </button>
@@ -367,8 +384,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                             <button
                               className="inline-flex items-center gap-2 px-2 py-1 text-xs rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
                               title={tt.copyCode}
-                              type="button"
-                              onClick={() => navigator.clipboard.writeText(tempCode).then(() => alert(tt.copied))}
+                              onClick={() => copyTempCode(tempCode)}
                             >
                               <Key className="w-3 h-3" />
                               <code className="font-mono">{tempCode}</code>
@@ -381,14 +397,12 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                           <div className="flex items-center gap-2">
                             <button
                               className="btn-secondary"
-                              type="button"
                               onClick={() => setShowUserEdit(u.id)}
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
                               className="btn-danger"
-                              type="button"
                               onClick={() => {
                                 if (u.id === currentUser.id) {
                                   alert("Je kunt jezelf niet verwijderen.");
@@ -412,6 +426,8 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
           </div>
         )}
 
+        {/* ------- Modals ------- */}
+
         {/* Nieuwe gebruiker */}
         {isManager && showCreateUser && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -421,7 +437,6 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                 <button
                   onClick={() => setShowCreateUser(false)}
                   className="text-gray-400 hover:text-gray-600"
-                  type="button"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -516,7 +531,6 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                 <button
                   onClick={() => setShowCreateUser(false)}
                   className="btn-secondary"
-                  type="button"
                 >
                   {tt.cancel}
                 </button>
@@ -546,7 +560,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                   } else {
                     alert("Aanmaken mislukt (bestaat al of serverfout).");
                   }
-                }} className="btn-primary" type="button">
+                }} className="btn-primary">
                   <UserPlus className="w-4 h-4 mr-2" />
                   {tt.create} {tt.users}
                 </button>
@@ -566,7 +580,6 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                 <button
                   onClick={() => setShowUserEdit(null)}
                   className="text-gray-400 hover:text-gray-600"
-                  type="button"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -606,7 +619,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                             const v = (e.target.value as AnyRole) || "user";
                             if (user.id === currentUser.id && v !== "manager") {
                               alert("Je kunt jezelf niet degraderen.");
-                              (e.currentTarget as HTMLSelectElement).value = "manager";
+                              e.currentTarget.value = "manager";
                               return;
                             }
                             const ok = await updateUser(user.id, { role: v as any });
@@ -633,7 +646,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                                 const boards = e.target.checked
                                   ? [...(user.boards ?? []), "voorwinkel"]
                                   : (user.boards ?? []).filter((b) => b !== "voorwinkel");
-                                await updateUser(user.id, { boards: boards as BoardType[] });
+                                await updateUser(user.id, { boards: boards.map(b => (b as unknown as BoardType)) });
                               }}
                               className="rounded mr-2"
                             />
@@ -647,7 +660,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                                 const boards = e.target.checked
                                   ? [...(user.boards ?? []), "achterwinkel"]
                                   : (user.boards ?? []).filter((b) => b !== "achterwinkel");
-                                await updateUser(user.id, { boards: boards as BoardType[] });
+                                await updateUser(user.id, { boards: (boards as unknown as BoardType[]) });
                               }}
                               className="rounded mr-2"
                             />
@@ -668,8 +681,7 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                             </code>
                             <button
                               className="ml-auto btn-secondary text-xs py-1 px-2"
-                              type="button"
-                              onClick={() => navigator.clipboard.writeText((user as any).temporaryCode).then(() => alert(tt.copied))}
+                              onClick={() => copyTempCode((user as any).temporaryCode)}
                             >
                               {tt.copyCode}
                             </button>
@@ -685,7 +697,6 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
                 <button
                   onClick={() => setShowUserEdit(null)}
                   className="btn-secondary"
-                  type="button"
                 >
                   {tt.close}
                 </button>
@@ -696,6 +707,4 @@ const Settings: React.FC<SettingsProps> = ({ isPersonalOnly = false }) => {
       </div>
     </div>
   );
-};
-
-export default Settings;
+}
