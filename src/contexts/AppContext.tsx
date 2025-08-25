@@ -208,36 +208,10 @@ function setUserTheme(userId: string | undefined, theme: AppSettings["theme"]) {
 /* ---------------- Types ---------------- */
 type NewUserInput = { employeeNumber: string; name: string; role: UserRole | "employee"; boards: BoardType[]; };
 type UpdateUserPatch = { name?: string; role?: UserRole | "employee"; boards?: BoardType[]; };
-
 type Thenable<T> = PromiseLike<T>;
 
-async function withAuthRetry<T = any>(op: () => Thenable<T>): Promise<T> {
-  let res: any = await op();
-  if (res?.error && (
-    res.error.status === 401 ||
-    res.error.status === 403 ||
-    String(res.error.code || "").toUpperCase().includes("JWT") ||
-    String(res.error.message || "").toLowerCase().includes("token") ||
-    String(res.error.message || "").toLowerCase().includes("session")
-  )) {
-    await supabase.auth.refreshSession();
-    res = await op();
-  }
-  return res as T;
-}
-
-async function ensureAuth() {
-  const { data } = await supabase.auth.getSession();
-  const exp = data?.session?.expires_at ? data.session.expires_at * 1000 : 0;
-  if (!data?.session || Date.now() > exp - 60_000) {
-    const { data: r } = await supabase.auth.refreshSession();
-    const token = r?.session?.access_token;
-    if (token) supabase.realtime.setAuth(token);
-  }
-}
-
-/* ---------------- Context shape ---------------- */
-interface AppContextType {
+/* ---------------- Context shape (EXPORTED) ---------------- */
+export type AppContextType = {
   currentUser: User | null;
   isManager: boolean;
   users: User[];
@@ -266,7 +240,7 @@ interface AppContextType {
 
   // settings
   updateSettings: (next: Partial<AppSettings> | AppSettings) => Promise<void>;
-}
+};
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -301,6 +275,30 @@ const normalizeTask = (x: any): Task => ({
   deadline: typeof x?.deadline === "string" ? x.deadline : undefined,
   activities: Array.isArray(x?.activities) ? x?.activities : [],
 });
+
+async function withAuthRetry<T = any>(op: () => Thenable<T>): Promise<T> {
+  let res: any = await op();
+  if (res?.error && (
+    res.error.status === 401 ||
+    res.error.status === 403 ||
+    String(res.error.code || "").toUpperCase().includes("JWT") ||
+    String(res.error.message || "").toLowerCase().includes("token") ||
+    String(res.error.message || "").toLowerCase().includes("session")
+  )) {
+    await supabase.auth.refreshSession();
+    res = await op();
+  }
+  return res as T;
+}
+async function ensureAuth() {
+  const { data } = await supabase.auth.getSession();
+  const exp = data?.session?.expires_at ? data.session.expires_at * 1000 : 0;
+  if (!data?.session || Date.now() > exp - 60_000) {
+    const { data: r } = await supabase.auth.refreshSession();
+    const token = r?.session?.access_token;
+    if (token) supabase.realtime.setAuth(token);
+  }
+}
 
 /* ---------------- Provider ---------------- */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -378,7 +376,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Map Auth→users row (stevig: via emailprefix of id)
+  // Map Auth→users row (via emailprefix of id)
   const loadCurrentUserFromSession = async (session: Session | null) => {
     if (!session?.user) { setCurrentUser(null); setIsManager(false); return; }
     const email = session.user.email || "";
@@ -613,7 +611,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   /* ---------- Realtime ---------- */
   const resetRealtimeSubscription = () => {
-    if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null; }
+    if (realtimeRef.current) {
+      // don't return promise from cleanup; just fire-and-forget
+      void supabase.removeChannel(realtimeRef.current);
+      realtimeRef.current = null;
+    }
     const channel = supabase
       .channel("praxis-tasks")
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => fetchTasks())
@@ -631,7 +633,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     clearInactivityTimer();
     if (!currentUser || !settings.autoLogout) return;
     const ms = Math.max(1, Number(settings.autoLogoutTime || 15)) * 60 * 1000;
-    inactivityTimerRef.current = window.setTimeout(() => { logout(); }, ms);
+    inactivityTimerRef.current = window.setTimeout(() => { void logout(); }, ms);
   };
   const bindActivity = () => {
     const reset = () => startInactivityTimer();
@@ -662,6 +664,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /* ---------- Auth events & init ---------- */
   useEffect(() => {
     let unsub: (() => void) | null = null;
+
     (async () => {
       const { data } = await supabase.auth.getSession();
       await loadCurrentUserFromSession(data?.session ?? null);
@@ -686,21 +689,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })();
 
     // Poll fallback (15s) als realtime niet vuurt
-    pollRef.current = window.setInterval(() => { fetchTasks(); }, 15000);
+    pollRef.current = window.setInterval(() => { void fetchTasks(); }, 15000);
 
     // refresh sessie bij terugkomen in tab / online
     const onFocus = async () => { await ensureAuth(); };
+    const onVisible = () => { if (document.visibilityState === "visible") { void onFocus(); } };
     window.addEventListener("focus", onFocus);
     window.addEventListener("online", onFocus);
-    window.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") onFocus(); });
+    window.addEventListener("visibilitychange", onVisible);
 
     return () => {
       if (unsub) unsub();
-      if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null; }
+      if (realtimeRef.current) { void supabase.removeChannel(realtimeRef.current); realtimeRef.current = null; }
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("online", onFocus);
-      window.removeEventListener("visibilitychange", () => {});
+      window.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -710,7 +714,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentUser?.id]);
 
   const value: AppContextType = {
-    currentUser, isManager, users, tasks, settings, t,
+    currentUser, isManager, users, tasks, settings,
+    t: i18n[settings.language] ?? i18n.nl,
     currentBoard, setCurrentBoard,
     login, logout, setPassword, consumeOneTimeCode,
     createUser, updateUser, deleteUser,
