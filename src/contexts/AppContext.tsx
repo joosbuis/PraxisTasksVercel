@@ -8,7 +8,7 @@ export interface AppSettings {
   theme: "light" | "dark" | "auto";
   language: "nl" | "en";
   autoLogout: boolean;
-  autoLogoutTime: number;
+  autoLogoutTime: number; // in minuten
   pushNotifications: boolean;
   deadlineWarnings: boolean;
   deadlineWarningDays: number;
@@ -99,13 +99,13 @@ const t = {
   low: "Laag",
   medium: "Gemiddeld",
   high: "Hoog",
-  theme: "Thema (beta. Werkend na nieuwe inlog)",
-  language: "Taal (beta)",
+  theme: "Thema",
+  language: "Taal",
   sound: "Geluid",
   light: "Licht",
   dark: "Donker",
   auto: "Auto",
-  autoLogout: "Automatisch uitloggen (beta)",
+  autoLogout: "Automatisch uitloggen",
   autoLogoutTime: "Tijd tot automatisch uitloggen (min.)",
   pushNotifications: "Push notificaties",
   deadlineWarnings: "Deadline waarschuwingen",
@@ -153,16 +153,16 @@ interface AppContextType {
   t: typeof t;
 }
 
+/** ---- Auth retry helper ---- */
 async function withAuthRetry<T>(op: () => Promise<{ data: any; error: any }>) {
   let res = await op();
-  // 401/403 of PostgREST session errors -> probeer één keer te verversen en opnieuw
   if (res?.error && (
-      res.error.status === 401 ||
-      res.error.status === 403 ||
-      String(res.error.code || '').toUpperCase().includes('JWT') ||
-      String(res.error.message || '').toLowerCase().includes('token') ||
-      String(res.error.message || '').toLowerCase().includes('session')
-    )) {
+    res.error.status === 401 ||
+    res.error.status === 403 ||
+    String(res.error.code || '').toUpperCase().includes('JWT') ||
+    String(res.error.message || '').toLowerCase().includes('token') ||
+    String(res.error.message || '').toLowerCase().includes('session')
+  )) {
     await supabase.auth.refreshSession();
     res = await op();
   }
@@ -216,12 +216,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const realtimeRef = useRef<RealtimeChannel | null>(null);
   const pollRef = useRef<number | null>(null);
 
-  // Theme per user
+  // ---- Thema & Taal updates ----
   useEffect(() => {
-    const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : "light";
+    // thema met per-user override
+    const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : (settings.theme || "light");
     document.documentElement.setAttribute("data-theme", theme);
-    if (settings.theme !== theme) setSettings((s) => ({ ...s, theme }));
-  }, [currentUser]);
+    // taal (html lang)
+    document.documentElement.setAttribute("lang", settings.language || "nl");
+  }, [currentUser?.id, settings.theme, settings.language]);
 
   /** ---- Fetchers ---- */
   const fetchUsers = async () => {
@@ -249,9 +251,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         theme: obj.theme === "dark" ? "dark" : obj.theme === "auto" ? "auto" : "light",
         language: obj.language === "en" ? "en" : "nl",
       };
-      const effectiveTheme = currentUser ? (getUserTheme(currentUser.id) || merged.theme) : "light";
+      // respecteer per-user theme override
+      const effectiveTheme = currentUser ? (getUserTheme(currentUser.id) || merged.theme) : merged.theme;
       setSettings({ ...merged, theme: effectiveTheme });
       document.documentElement.setAttribute("data-theme", effectiveTheme);
+      document.documentElement.setAttribute("lang", merged.language);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -270,19 +274,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /** ---- Auth ---- */
   const login = async (employeeNumber: string, password: string) => {
     try {
-      const emp = (employeeNumber ?? '').trim().replaceAll('"','');
+      const emp = (employeeNumber ?? '').trim().replace(/"/g,'');
       const pwd = (password ?? '').trim();
       const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
       if (!userData) return false;
 
-      // tijdelijke code? -> NIET inloggen, alleen melden aan UI
+      // tijdelijke code? -> NIET inloggen, UI handelt wachtwoord setup af
       if (userData.is_first_login && userData.temporary_code === pwd) {
         console.log('[login] Temporary code detected — let LoginForm handle password setup');
         return false;
-}
+      }
 
-
-      // Supabase Auth
       if (!userData.is_first_login) {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: `${emp}@praxis.local`, password: pwd,
@@ -298,7 +300,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setIsManager(userData.role === "manager");
           await new Promise(r => setTimeout(r, 60));
           await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
-          resetRealtimeSubscription(); // verse token → nieuw kanaal
+          resetRealtimeSubscription();
           return true;
         }
       }
@@ -331,10 +333,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (authErr2) return false;
         } else { return false; }
       }
-      const { error: updateError } = await supabase.from('users').update({
-        is_first_login: false, temporary_code: null, updated_at: new Date().toISOString()
-      }).eq('id', userId);
+      const { error: updateError } = await withAuthRetry(() =>
+        supabase.from('users').update({
+          is_first_login: false, temporary_code: null, updated_at: new Date().toISOString()
+        } as any).eq('id', userId)
+      );
       if (updateError) return false;
+
       const { data: freshUser } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
       if (freshUser) {
         setCurrentUser({
@@ -354,7 +359,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const consumeOneTimeCode = async (employeeNumber: string, code: string): Promise<User | null> => {
     try {
-      const emp = (employeeNumber ?? '').trim().replaceAll('"','');
+      const emp = (employeeNumber ?? '').trim().replace(/"/g,'');
       const one = (code ?? '').trim();
       const { data, error } = await supabase.rpc('consume_temp_code', { p_employee_number: emp, p_code: one });
       if (error || !data) return null;
@@ -377,15 +382,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
       const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const { error } = await supabase.from('users').insert({
-        employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
-        temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
-      } as any);
+      const { error } = await withAuthRetry(() =>
+        supabase.from('users').insert({
+          employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
+          temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
+        } as any)
+      );
       if (error) throw error;
       await fetchUsers();
       return true;
     } catch { return false; }
   };
+
   const updateUser = async (id: string, patch: UpdateUserPatch) => {
     try {
       const updateData: any = {};
@@ -393,12 +401,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (patch.role) updateData.role = String(patch.role).toLowerCase() === "manager" ? "manager" : "user";
       if (patch.boards) updateData.boards = patch.boards;
       updateData.updated_at = new Date().toISOString();
-      const { error } = await supabase.from('users').update(updateData).eq('id', id);
+
+      const { error } = await withAuthRetry(() =>
+        supabase.from('users').update(updateData).eq('id', id)
+      );
       if (error) throw error;
       await fetchUsers();
       return true;
     } catch { return false; }
   };
+
   const deleteUser = async (id: string) => {
     try {
       const { error } = await supabase.functions.invoke('delete-user', { body: { id } });
@@ -417,7 +429,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch {}
     try {
-      const { error: dbErr } = await supabase.from('users').delete().eq('id', id);
+      const { error: dbErr } = await withAuthRetry(() =>
+        supabase.from('users').delete().eq('id', id)
+      );
       if (dbErr) throw dbErr;
       await fetchUsers();
       return true;
@@ -426,52 +440,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateSettings = async (next: Partial<AppSettings> | AppSettings) => {
     const merged = { ...settings, ...next };
-    const { theme: nextTheme, ...serverPayload } = merged;
+    const { theme: nextTheme, language: nextLang, ...serverPayload } = merged;
     setSettings(merged);
+
     try {
       for (const [key, value] of Object.entries(serverPayload)) {
-        await supabase.from('settings').upsert({ key, value: value as any, updated_at: new Date().toISOString() } as any);
+        await withAuthRetry(() =>
+          supabase.from('settings').upsert({ key, value: value as any, updated_at: new Date().toISOString() } as any)
+        );
       }
-    } catch (error) { console.error('Error updating settings:', error); }
+    } catch (error) {
+      console.error('Error updating settings:', error);
+    }
+
+    // lokale UI updates
     if (typeof nextTheme !== "undefined") {
       try { setUserTheme(currentUser?.id, nextTheme as AppSettings["theme"]); } catch {}
       document.documentElement.setAttribute("data-theme", String(nextTheme));
+    }
+    if (typeof nextLang !== "undefined") {
+      document.documentElement.setAttribute("lang", String(nextLang));
     }
   };
 
   const addTask = async (task: Task) => {
     try {
       const safe = normalizeTask(task);
-      const { error } = await supabase.from('tasks').insert({
-        id: safe.id, title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
-        assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
-        deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
-        started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
-        picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
-        completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null,
-      } as any);
+      const { error } = await withAuthRetry(() =>
+        supabase.from('tasks').insert({
+          id: safe.id, title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
+          assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
+          deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
+          started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
+          picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
+          completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null,
+        } as any)
+      );
       if (error) throw error;
       await fetchTasks();
     } catch (error) { console.error('Error adding task to database:', error); }
   };
+
   const updateTask = async (task: Task) => {
     try {
       const safe = normalizeTask({ ...task, updatedAt: new Date().toISOString() });
-      const { error } = await supabase.from('tasks').update({
-        title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
-        assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
-        deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
-        started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
-        picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
-        completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null, updated_at: new Date().toISOString(),
-      } as any).eq('id', safe.id);
+      const { error } = await withAuthRetry(() =>
+        supabase.from('tasks').update({
+          title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
+          assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
+          deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
+          started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
+          picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
+          completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null, updated_at: new Date().toISOString(),
+        } as any).eq('id', safe.id)
+      );
       if (error) throw error;
       await fetchTasks();
     } catch (error) { console.error('Error updating task in database:', error); }
   };
+
   const deleteTask = async (id: string) => {
     try {
-      const { error } = await supabase.from('tasks').delete().eq('id', id);
+      const { error } = await withAuthRetry(() =>
+        supabase.from('tasks').delete().eq('id', id)
+      );
       if (error) throw error;
       await fetchTasks();
     } catch (error) { console.error('Error deleting task from database:', error); }
@@ -489,7 +521,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     realtimeRef.current = channel;
   };
 
-  // Init: wacht op sessie, fetch, subscribe realtime en start polling fallback
+  // ---- Auto-logout on inactivity ----
+  const inactivityTimerRef = useRef<number | null>(null);
+  const activityHandlerRef = useRef<(() => void) | null>(null);
+
+  const clearInactivityTimer = () => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+  };
+  const startInactivityTimer = () => {
+    clearInactivityTimer();
+    if (!currentUser || !settings.autoLogout) return;
+    const ms = Math.max(1, Number(settings.autoLogoutTime || 15)) * 60 * 1000;
+    inactivityTimerRef.current = window.setTimeout(() => {
+      console.log('[autoLogout] Logging out due to inactivity');
+      logout();
+    }, ms);
+  };
+  const bindActivityListeners = () => {
+    const reset = () => startInactivityTimer();
+    activityHandlerRef.current = reset;
+    window.addEventListener('mousemove', reset);
+    window.addEventListener('keydown', reset);
+    window.addEventListener('click', reset);
+    window.addEventListener('touchstart', reset);
+    window.addEventListener('visibilitychange', reset);
+  };
+  const unbindActivityListeners = () => {
+    if (!activityHandlerRef.current) return;
+    const reset = activityHandlerRef.current;
+    window.removeEventListener('mousemove', reset);
+    window.removeEventListener('keydown', reset);
+    window.removeEventListener('click', reset);
+    window.removeEventListener('touchstart', reset);
+    window.removeEventListener('visibilitychange', reset);
+    activityHandlerRef.current = null;
+  };
+
+  // manage auto-logout lifecycle
+  useEffect(() => {
+    if (currentUser && settings.autoLogout) {
+      bindActivityListeners();
+      startInactivityTimer();
+      return () => {
+        unbindActivityListeners();
+        clearInactivityTimer();
+      };
+    } else {
+      unbindActivityListeners();
+      clearInactivityTimer();
+    }
+  }, [currentUser?.id, settings.autoLogout, settings.autoLogoutTime]);
+
+  // Init: fetchen, realtime, auth state changes, polling fallback
   useEffect(() => {
     let unsub: (() => void) | null = null;
     (async () => {
@@ -502,7 +588,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           await new Promise(r => setTimeout(r, 60));
           await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
-          resetRealtimeSubscription(); // opnieuw subscriben met verse token
+          resetRealtimeSubscription();
         }
         if (event === 'SIGNED_OUT') {
           setCurrentUser(null); setIsManager(false); setUsers([]); setTasks([]);
@@ -512,7 +598,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsub = () => sub.data.subscription.unsubscribe();
     })();
 
-    // Polling fallback elke 15s (voor het geval Realtime niet vuurt)
+    // Polling fallback elke 15s (voor als Realtime niet vuurt)
     pollRef.current = window.setInterval(() => { fetchTasks(); }, 15000);
 
     return () => {
@@ -522,7 +608,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Extra zekerheid: als currentUser wisselt, even refreshen
+  // Extra zekerheid bij user wissel
   useEffect(() => {
     if (currentUser) {
       (async () => {
@@ -551,4 +637,3 @@ export const useAppContext = () => {
   return ctx;
 };
 export const useApp = useAppContext;
-
