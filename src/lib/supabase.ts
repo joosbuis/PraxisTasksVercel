@@ -15,8 +15,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: localStorage,
   },
   global: {
-    headers: {
-      'x-client-info': 'praxis-tasks',
-    },
+    headers: { 'x-client-info': 'praxis-tasks' },
   },
 });
