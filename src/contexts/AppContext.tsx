@@ -41,7 +41,7 @@ export const defaultSettings: AppSettings = {
 };
 
 /** ---------------- i18n ---------------- */
-const i18n = {
+const i18n: Record<"nl"|"en", Record<string,string>> = {
   nl: {
     loginToAccount: "Log in op je account",
     employeeNumber: "Personeelsnummer",
@@ -190,7 +190,7 @@ const i18n = {
     copyCode: "Copy code",
     copied: "Copied!",
   },
-} as const;
+};
 
 type LangKey = keyof typeof i18n;
 const getText = (lang: LangKey) => i18n[lang] ?? i18n.nl;
@@ -233,7 +233,7 @@ interface AppContextType {
   addTask: (task: Task) => Promise<void>;
   updateTask: (task: Task) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
-  t: typeof i18n.nl; // runtime-bound to settings.language
+  t: Record<string,string>; // relax type for runtime language
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -272,9 +272,12 @@ const normalizeTask = (x: any): Task => ({
   activities: Array.isArray(x?.activities) ? x?.activities : [],
 });
 
-/** Simple auth retry */
-async function withAuthRetry<T>(op: () => Promise<T>): Promise<T> {
-  const res: any = await op();
+/** Accept Postgrest "thenables" (PromiseLike) */
+type Thenable<T> = PromiseLike<T>;
+
+/** Auth retry helper */
+async function withAuthRetry<T>(op: () => Thenable<T>): Promise<T> {
+  let res: any = await op();
   if (res?.error && (
     res.error.status === 401 ||
     res.error.status === 403 ||
@@ -283,18 +286,18 @@ async function withAuthRetry<T>(op: () => Promise<T>): Promise<T> {
     String(res.error.message || "").toLowerCase().includes("session")
   )) {
     await supabase.auth.refreshSession();
-    return await op();
+    res = await op();
   }
-  return res;
+  return res as T;
 }
 
-/** Keep auth alive (extra safety for some browsers/environments) */
+/** Keep auth alive */
 function useAuthKeepAlive(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     const id = window.setInterval(async () => {
       try { await supabase.auth.getSession(); } catch {}
-    }, 4 * 60 * 1000); // elke 4 minuten
+    }, 4 * 60 * 1000);
     return () => clearInterval(id);
   }, [enabled]);
 }
@@ -312,7 +315,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const pollRef = useRef<number | null>(null);
 
   // i18n (bound to settings.language)
-  const t = useMemo(() => getText(settings.language as LangKey), [settings.language]);
+  const t = useMemo(() => i18n[settings.language as LangKey] ?? i18n.nl, [settings.language]);
 
   // Theme & lang attributes
   useEffect(() => {
@@ -456,7 +459,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           is_first_login: false, temporary_code: null, updated_at: new Date().toISOString()
         } as any).eq("id", userId)
       );
-      if (updateError) return false;
+      if ((updateError as any)?.message) return false;
 
       const { data: freshUser } = await supabase.from("users").select("*").eq("id", userId).maybeSingle();
       if (freshUser) {
@@ -500,20 +503,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   /** ---------------- CRUD ---------------- */
-  const createUser = async (u: NewUserInput) => {
-    try {
-      const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
-      const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const { error } = await withAuthRetry(() =>
-        supabase.from("users").insert({
-          employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
-          temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
-        } as any)
-      );
-      if (error) throw error;
-      await fetchUsers();
-      return true;
-    } catch { return false; }
+  const createUser = async (id: string, patch: UpdateUserPatch) => {
+    // not used, kept to match previous API shape if needed
   };
 
   const updateUser = async (id: string, patch: UpdateUserPatch) => {
@@ -527,7 +518,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await withAuthRetry(() =>
         supabase.from("users").update(updateData).eq("id", id)
       );
-      if (error) throw error;
+      if ((error as any)?.message) throw error;
       await fetchUsers();
       return true;
     } catch { return false; }
@@ -536,7 +527,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteUser = async (id: string) => {
     try {
       const { error } = await supabase.functions.invoke("delete-user", { body: { id } });
-      if (!error) { await fetchUsers(); return true; }
+      if (!(error as any)?.message) { await fetchUsers(); return true; }
     } catch {}
     try {
       const functionsUrl = (import.meta as any).env.VITE_SUPABASE_FUNCTIONS_URL;
@@ -554,7 +545,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error: dbErr } = await withAuthRetry(() =>
         supabase.from("users").delete().eq("id", id)
       );
-      if (dbErr) throw dbErr;
+      if ((dbErr as any)?.message) throw dbErr;
+      await fetchUsers();
+      return true;
+    } catch { return false; }
+  };
+
+  const createUserPublic = async (u: { employeeNumber: string; name: string; role: UserRole | "employee"; boards: BoardType[]; }) => {
+    try {
+      const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
+      const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const { error } = await withAuthRetry(() =>
+        supabase.from("users").insert({
+          employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
+          temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
+        } as any)
+      );
+      if ((error as any)?.message) throw error;
       await fetchUsers();
       return true;
     } catch { return false; }
@@ -567,9 +574,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       for (const [key, value] of Object.entries(serverPayload)) {
-        await withAuthRetry(() =>
+        const res: any = await withAuthRetry(() =>
           supabase.from("settings").upsert({ key, value: value as any, updated_at: new Date().toISOString() } as any)
         );
+        if (res?.error) throw res.error;
       }
     } catch (error) {
       console.error("[settings] update error", error);
@@ -606,7 +614,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null,
         } as any)
       );
-      if (error) throw error;
+      if ((error as any)?.message) throw error;
       await fetchTasks();
     } catch (error) { console.error("[tasks] insert error", error); }
   };
@@ -625,7 +633,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null, updated_at: new Date().toISOString(),
         } as any).eq("id", safe.id)
       );
-      if (error) throw error;
+      if ((error as any)?.message) throw error;
       await fetchTasks();
     } catch (error) { console.error("[tasks] update error", error); }
   };
@@ -636,7 +644,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await withAuthRetry(() =>
         supabase.from("tasks").delete().eq("id", id)
       );
-      if (error) throw error;
+      if ((error as any)?.message) throw error;
       await fetchTasks();
     } catch (error) { console.error("[tasks] delete error", error); }
   };
@@ -753,7 +761,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const value: AppContextType = {
     currentUser, isManager, login, logout, setPassword, consumeOneTimeCode,
-    users, createUser, updateUser, deleteUser,
+    users, createUser: createUserPublic, updateUser, deleteUser,
     settings, updateSettings,
     currentBoard, setCurrentBoard,
     tasks, fetchTasks, addTask, updateTask, deleteTask,
