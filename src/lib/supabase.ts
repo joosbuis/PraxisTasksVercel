@@ -1,20 +1,21 @@
-// src/lib/supabase.ts
+// src/lib/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
+export const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      flowType: 'pkce',
+      detectSessionInUrl: true,
+    },
+    realtime: { params: { eventsPerSecond: 5 } },
+  }
+);
 
-if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL is missing');
-if (!supabaseAnonKey) throw new Error('VITE_SUPABASE_ANON_KEY is missing');
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storage: localStorage,
-  },
-  global: {
-    headers: { 'x-client-info': 'praxis-tasks' },
-  },
+// heel belangrijk: update realtime auth bij sessiewijziging
+supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.realtime.setAuth(session?.access_token ?? '');
 });
