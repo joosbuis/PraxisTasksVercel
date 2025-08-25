@@ -1,29 +1,48 @@
-// src/lib/supabaseClient.ts
-import { createClient } from '@supabase/supabase-js'
+// src/lib/supabase.ts
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * ÉÉN gedeelde client voor de hele app.
- * - Vite leest env via import.meta.env.VITE_*
- * - Zorg dat je in Vercel "VITE_SUPABASE_URL" en "VITE_SUPABASE_ANON_KEY" hebt gezet.
+ * Één gedeelde Supabase client voor de hele app.
+ * - Vite: gebruik VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY
+ * - Houdt sessie in de browser vast (persistSession)
+ * - Ververst tokens automatisch (autoRefreshToken)
+ * - Sync't het access token met Realtime bij auth-wijzigingen
+ *
+ * LET OP:
+ * - Gebruik deze client overal via:  import { supabase } from '@/lib/supabase'
+ * - Maak nergens anders nog een eigen createClient-aanroep.
  */
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      flowType: 'pkce',
-      detectSessionInUrl: true,
-    },
-    realtime: {
-      // klein beetje throttling is gezond
-      params: { eventsPerSecond: 5 },
-    },
-  }
-)
 
-// Belangrijk: als het access token ververst, geef het ook door aan Realtime
+const url = import.meta.env.VITE_SUPABASE_URL
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!url || !anon) {
+  // Helpt bij het snel vinden van een misconfig in Vercel of lokaal
+  // (geen throw om build niet te breken; wel duidelijke melding in console)
+  // eslint-disable-next-line no-console
+  console.error(
+    '[Supabase] Ontbrekende env vars. Zet VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY in je .env en in Vercel.'
+  )
+}
+
+export const supabase: SupabaseClient = createClient(url!, anon!, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    flowType: 'pkce',
+    detectSessionInUrl: true,
+  },
+  realtime: {
+    params: { eventsPerSecond: 5 },
+  },
+})
+
+// Zorg dat Realtime het actuele access_token gebruikt na login/refresh/logout
 supabase.auth.onAuthStateChange((_event, session) => {
-  supabase.realtime.setAuth(session?.access_token ?? '')
+  const token = session?.access_token ?? ''
+  try {
+    supabase.realtime.setAuth(token)
+  } catch {
+    // noop – oudere @supabase/realtime versies hebben setAuth soms niet
+  }
 })
