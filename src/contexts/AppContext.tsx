@@ -276,8 +276,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       console.log('[login] Attempting login for employee:', emp);
       
-      const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
+      const { data: userData, error: userError } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
+      console.log('[login] Database query error:', userError);
       console.log('[login] User data found:', !!userData);
+      console.log('[login] User data:', userData);
       
       if (!userData) return false;
 
