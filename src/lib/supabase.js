@@ -1,15 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-if (!supabaseUrl)
-    console.warn('[DEBUG] Missing VITE_SUPABASE_URL env');
-if (!supabaseAnonKey)
-    console.warn('[DEBUG] Missing VITE_SUPABASE_ANON_KEY env');
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const supabase = createClient(supabaseUrl, supabaseAnon, {
     auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce'
+        detectSessionInUrl: false,
     },
+    realtime: { params: { eventsPerSecond: 3 } },
+});
+// Heel belangrijk: token doorgeven aan Realtime bij auth events
+supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        const token = session?.access_token;
+        if (token)
+            supabase.realtime.setAuth(token);
+    }
 });

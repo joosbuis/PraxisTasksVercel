@@ -170,8 +170,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 ) : (
                   <Lock className="w-5 h-5" />
                 )}
-                {isLoading ? 'Bezig...' : 'Wachtwoord instellen'}
-              </button>
+              <div><strong>Manager:</strong> Personeelsnr: 1001, Wachtwoord: manager123</div>
+              <div><strong>Gebruiker:</strong> Personeelsnr: 1002, Wachtwoord: user123</div>
+              <div className="text-xs text-gray-500 mt-2">
+                Bij eerste login wordt automatisch een account aangemaakt.
+              </div>
             </form>
           </div>
         </div>

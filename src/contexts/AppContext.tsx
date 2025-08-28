@@ -273,7 +273,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const emp = (employeeNumber ?? '').trim().replace(/"/g,'');
       const pwd = (password ?? '').trim();
+      
+      console.log('[login] Attempting login for employee:', emp);
+      
       const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
+      console.log('[login] User data found:', !!userData);
+      
       if (!userData) return false;
 
       // tijdelijke code? -> NIET inloggen (UI moet naar password-setup flow)
@@ -282,12 +287,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
+      // Voor test accounts: direct inloggen zonder Auth als ze nog geen wachtwoord hebben
+      if (userData.is_first_login && !userData.temporary_code) {
+        console.log('[login] First login without temp code, setting up Auth account');
+        
+        // Maak Auth account aan met het ingevoerde wachtwoord
+        const email = `${emp}@praxis.local`;
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: pwd
+        });
+        
+        if (signUpError && !signUpError.message?.includes('user_already_exists')) {
+          console.error('[login] SignUp error:', signUpError);
+          return false;
+        }
+        
+        // Update user record
+        await supabase.from('users').update({
+          is_first_login: false,
+          updated_at: new Date().toISOString()
+        }).eq('id', userData.id);
+        
+        // Nu proberen in te loggen
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password: pwd
+        });
+        
+        if (authError) {
+          console.error('[login] Auth error after signup:', authError);
+          return false;
+        }
+        
+        if (authData.user) {
+          setCurrentUser({
+            id: authData.user.id,
+            employeeNumber: userData.employee_number,
+            username: userData.username,
+            name: userData.name,
+            role: userData.role as UserRole,
+            boards: Array.isArray(userData.boards) ? userData.boards : ["voorwinkel"],
+            isFirstLogin: false,
+          });
+          setIsManager(userData.role === "manager");
+          await new Promise(r => setTimeout(r, 60));
+          await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
+          resetRealtimeSubscription();
+          return true;
+        }
+      }
       if (!userData.is_first_login) {
+        console.log('[login] Regular login attempt');
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: `${emp}@praxis.local`, password: pwd,
         });
-        if (authError) return false;
+        if (authError) {
+          console.error('[login] Auth error:', authError);
+          return false;
+        }
         if (authData.user) {
+          console.log('[login] Auth successful');
           setCurrentUser({
             id: authData.user.id, employeeNumber: userData.employee_number, username: userData.username,
             name: userData.name, role: userData.role as UserRole,
@@ -302,7 +362,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
       return false;
-    } catch {
+    } catch (error) {
+      console.error('[login] Exception:', error);
       return false;
     }
   };

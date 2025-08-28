@@ -40,7 +40,7 @@ function setUserTheme(userId, theme) {
     catch { }
 }
 const t = {
-    loginToAccount: "Log in op je account",
+    loginToAccount: "Log in op je accountPreveiw",
     employeeNumber: "Personeelsnummer",
     password: "Wachtwoord",
     login: "Inloggen",
@@ -113,6 +113,19 @@ const t = {
     copyCode: "Kopieer code",
     copied: "Gekopieerd!",
 };
+/** ---- Auth retry helper (lossere typing voor Supabase “thenables”) ---- */
+async function withAuthRetry(op) {
+    let res = await op();
+    if (res?.error && (res.error.status === 401 ||
+        res.error.status === 403 ||
+        String(res.error.code || '').toUpperCase().includes('JWT') ||
+        String(res.error.message || '').toLowerCase().includes('token') ||
+        String(res.error.message || '').toLowerCase().includes('session'))) {
+        await supabase.auth.refreshSession();
+        res = await op();
+    }
+    return res;
+}
 const AppContext = createContext(undefined);
 /** ---- Helpers ---- */
 const uuid = () => crypto.randomUUID();
@@ -162,13 +175,12 @@ export const AppProvider = ({ children }) => {
     const [tasks, setTasks] = useState([]);
     const realtimeRef = useRef(null);
     const pollRef = useRef(null);
-    // Theme per user
+    // ---- Thema & Taal updates ----
     useEffect(() => {
-        const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : "light";
+        const theme = currentUser ? (getUserTheme(currentUser.id) || settings.theme || "light") : (settings.theme || "light");
         document.documentElement.setAttribute("data-theme", theme);
-        if (settings.theme !== theme)
-            setSettings((s) => ({ ...s, theme }));
-    }, [currentUser]);
+        document.documentElement.setAttribute("lang", settings.language || "nl");
+    }, [currentUser?.id, settings.theme, settings.language]);
     /** ---- Fetchers ---- */
     const fetchUsers = async () => {
         try {
@@ -199,9 +211,10 @@ export const AppProvider = ({ children }) => {
                 theme: obj.theme === "dark" ? "dark" : obj.theme === "auto" ? "auto" : "light",
                 language: obj.language === "en" ? "en" : "nl",
             };
-            const effectiveTheme = currentUser ? (getUserTheme(currentUser.id) || merged.theme) : "light";
+            const effectiveTheme = currentUser ? (getUserTheme(currentUser.id) || merged.theme) : merged.theme;
             setSettings({ ...merged, theme: effectiveTheme });
             document.documentElement.setAttribute("data-theme", effectiveTheme);
+            document.documentElement.setAttribute("lang", merged.language);
         }
         catch (error) {
             console.error('Error fetching settings:', error);
@@ -222,30 +235,73 @@ export const AppProvider = ({ children }) => {
     /** ---- Auth ---- */
     const login = async (employeeNumber, password) => {
         try {
-            const emp = (employeeNumber ?? '').trim().replaceAll('"', '');
+            const emp = (employeeNumber ?? '').trim().replace(/"/g, '');
             const pwd = (password ?? '').trim();
+            console.log('[login] Attempting login for employee:', emp);
             const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
+            console.log('[login] User data found:', !!userData);
             if (!userData)
                 return false;
-            // tijdelijke code
+            // tijdelijke code? -> NIET inloggen (UI moet naar password-setup flow)
             if (userData.is_first_login && userData.temporary_code === pwd) {
-                setCurrentUser({
-                    id: userData.id, employeeNumber: userData.employee_number, username: userData.username,
-                    name: userData.name, role: userData.role,
-                    boards: Array.isArray(userData.boards) ? userData.boards : ["voorwinkel"],
-                    isFirstLogin: userData.is_first_login, temporaryCode: userData.temporary_code,
-                });
-                setIsManager(userData.role === "manager");
-                return true;
+                console.log('[login] Temporary code detected — let LoginForm handle password setup');
+                return false;
             }
-            // Supabase Auth
+            // Voor test accounts: direct inloggen zonder Auth als ze nog geen wachtwoord hebben
+            if (userData.is_first_login && !userData.temporary_code) {
+                console.log('[login] First login without temp code, setting up Auth account');
+                // Maak Auth account aan met het ingevoerde wachtwoord
+                const email = `${emp}@praxis.local`;
+                const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                    email,
+                    password: pwd
+                });
+                if (signUpError && !signUpError.message?.includes('user_already_exists')) {
+                    console.error('[login] SignUp error:', signUpError);
+                    return false;
+                }
+                // Update user record
+                await supabase.from('users').update({
+                    is_first_login: false,
+                    updated_at: new Date().toISOString()
+                }).eq('id', userData.id);
+                // Nu proberen in te loggen
+                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                    email,
+                    password: pwd
+                });
+                if (authError) {
+                    console.error('[login] Auth error after signup:', authError);
+                    return false;
+                }
+                if (authData.user) {
+                    setCurrentUser({
+                        id: authData.user.id,
+                        employeeNumber: userData.employee_number,
+                        username: userData.username,
+                        name: userData.name,
+                        role: userData.role,
+                        boards: Array.isArray(userData.boards) ? userData.boards : ["voorwinkel"],
+                        isFirstLogin: false,
+                    });
+                    setIsManager(userData.role === "manager");
+                    await new Promise(r => setTimeout(r, 60));
+                    await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
+                    resetRealtimeSubscription();
+                    return true;
+                }
+            }
             if (!userData.is_first_login) {
+                console.log('[login] Regular login attempt');
                 const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                     email: `${emp}@praxis.local`, password: pwd,
                 });
-                if (authError)
+                if (authError) {
+                    console.error('[login] Auth error:', authError);
                     return false;
+                }
                 if (authData.user) {
+                    console.log('[login] Auth successful');
                     setCurrentUser({
                         id: authData.user.id, employeeNumber: userData.employee_number, username: userData.username,
                         name: userData.name, role: userData.role,
@@ -255,13 +311,14 @@ export const AppProvider = ({ children }) => {
                     setIsManager(userData.role === "manager");
                     await new Promise(r => setTimeout(r, 60));
                     await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
-                    resetRealtimeSubscription(); // verse token → nieuw kanaal
+                    resetRealtimeSubscription();
                     return true;
                 }
             }
             return false;
         }
-        catch {
+        catch (error) {
+            console.error('[login] Exception:', error);
             return false;
         }
     };
@@ -296,9 +353,9 @@ export const AppProvider = ({ children }) => {
                     return false;
                 }
             }
-            const { error: updateError } = await supabase.from('users').update({
+            const { error: updateError } = await withAuthRetry(() => supabase.from('users').update({
                 is_first_login: false, temporary_code: null, updated_at: new Date().toISOString()
-            }).eq('id', userId);
+            }).eq('id', userId));
             if (updateError)
                 return false;
             const { data: freshUser } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
@@ -322,14 +379,17 @@ export const AppProvider = ({ children }) => {
     };
     const consumeOneTimeCode = async (employeeNumber, code) => {
         try {
-            const emp = (employeeNumber ?? '').trim().replaceAll('"', '');
+            const emp = (employeeNumber ?? '').trim().replace(/"/g, '');
             const one = (code ?? '').trim();
-            const { data } = await supabase.rpc('consume_temp_code', { p_employee_number: emp, p_code: one });
-            if (!data)
+            const { data, error } = await supabase.rpc('consume_temp_code', { p_employee_number: emp, p_code: one });
+            if (error || !data)
                 return null;
             const u = {
-                id: data.id, employeeNumber: data.employee_number, username: data.username,
-                name: data.name, role: data.role,
+                id: data.id,
+                employeeNumber: data.employee_number,
+                username: data.username,
+                name: data.name,
+                role: data.role,
                 boards: Array.isArray(data.boards) ? data.boards : ["voorwinkel"],
                 isFirstLogin: data.is_first_login,
             };
@@ -345,10 +405,10 @@ export const AppProvider = ({ children }) => {
         try {
             const role = String(u.role).toLowerCase() === "manager" ? "manager" : "user";
             const temporaryCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const { error } = await supabase.from('users').insert({
+            const { error } = await withAuthRetry(() => supabase.from('users').insert({
                 employee_number: u.employeeNumber, username: u.employeeNumber, name: u.name, role,
                 temporary_code: temporaryCode, is_first_login: true, boards: u.boards,
-            });
+            }));
             if (error)
                 throw error;
             await fetchUsers();
@@ -368,7 +428,7 @@ export const AppProvider = ({ children }) => {
             if (patch.boards)
                 updateData.boards = patch.boards;
             updateData.updated_at = new Date().toISOString();
-            const { error } = await supabase.from('users').update(updateData).eq('id', id);
+            const { error } = await withAuthRetry(() => supabase.from('users').update(updateData).eq('id', id));
             if (error)
                 throw error;
             await fetchUsers();
@@ -404,7 +464,7 @@ export const AppProvider = ({ children }) => {
         }
         catch { }
         try {
-            const { error: dbErr } = await supabase.from('users').delete().eq('id', id);
+            const { error: dbErr } = await withAuthRetry(() => supabase.from('users').delete().eq('id', id));
             if (dbErr)
                 throw dbErr;
             await fetchUsers();
@@ -416,11 +476,11 @@ export const AppProvider = ({ children }) => {
     };
     const updateSettings = async (next) => {
         const merged = { ...settings, ...next };
-        const { theme: nextTheme, ...serverPayload } = merged;
+        const { theme: nextTheme, language: nextLang, ...serverPayload } = merged;
         setSettings(merged);
         try {
             for (const [key, value] of Object.entries(serverPayload)) {
-                await supabase.from('settings').upsert({ key, value: value, updated_at: new Date().toISOString() });
+                await withAuthRetry(() => supabase.from('settings').upsert({ key, value: value, updated_at: new Date().toISOString() }));
             }
         }
         catch (error) {
@@ -433,18 +493,21 @@ export const AppProvider = ({ children }) => {
             catch { }
             document.documentElement.setAttribute("data-theme", String(nextTheme));
         }
+        if (typeof nextLang !== "undefined") {
+            document.documentElement.setAttribute("lang", String(nextLang));
+        }
     };
     const addTask = async (task) => {
         try {
             const safe = normalizeTask(task);
-            const { error } = await supabase.from('tasks').insert({
+            const { error } = await withAuthRetry(() => supabase.from('tasks').insert({
                 id: safe.id, title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
                 assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
                 deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
                 started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
                 picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
                 completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null,
-            });
+            }));
             if (error)
                 throw error;
             await fetchTasks();
@@ -456,14 +519,14 @@ export const AppProvider = ({ children }) => {
     const updateTask = async (task) => {
         try {
             const safe = normalizeTask({ ...task, updatedAt: new Date().toISOString() });
-            const { error } = await supabase.from('tasks').update({
+            const { error } = await withAuthRetry(() => supabase.from('tasks').update({
                 title: safe.title, description: safe.description, status: safe.status, priority: safe.priority,
                 assigned_to: safe.assignedTo || null, assigned_to_name: safe.assignedToName, board: safe.board,
                 deadline: safe.deadline || null, activities: safe.activities, started_by: safe.startedBy || null,
                 started_by_name: safe.startedByName || null, started_at: safe.startedAt || null, picked_up_by: safe.pickedUpBy || null,
                 picked_up_by_name: safe.pickedUpByName || null, picked_up_at: safe.pickedUpAt || null, completed_by: safe.completedBy || null,
                 completed_by_name: safe.completedByName || null, completed_at: safe.completedAt || null, updated_at: new Date().toISOString(),
-            }).eq('id', safe.id);
+            }).eq('id', safe.id));
             if (error)
                 throw error;
             await fetchTasks();
@@ -474,7 +537,7 @@ export const AppProvider = ({ children }) => {
     };
     const deleteTask = async (id) => {
         try {
-            const { error } = await supabase.from('tasks').delete().eq('id', id);
+            const { error } = await withAuthRetry(() => supabase.from('tasks').delete().eq('id', id));
             if (error)
                 throw error;
             await fetchTasks();
@@ -497,7 +560,60 @@ export const AppProvider = ({ children }) => {
             .subscribe();
         realtimeRef.current = channel;
     };
-    // Init: wacht op sessie, fetch, subscribe realtime en start polling fallback
+    // ---- Auto-logout on inactivity ----
+    const inactivityTimerRef = useRef(null);
+    const activityHandlerRef = useRef(null);
+    const clearInactivityTimer = () => {
+        if (inactivityTimerRef.current) {
+            clearTimeout(inactivityTimerRef.current);
+            inactivityTimerRef.current = null;
+        }
+    };
+    const startInactivityTimer = () => {
+        clearInactivityTimer();
+        if (!currentUser || !settings.autoLogout)
+            return;
+        const ms = Math.max(1, Number(settings.autoLogoutTime || 15)) * 60 * 1000;
+        inactivityTimerRef.current = window.setTimeout(() => {
+            console.log('[autoLogout] Logging out due to inactivity');
+            logout();
+        }, ms);
+    };
+    const bindActivityListeners = () => {
+        const reset = () => startInactivityTimer();
+        activityHandlerRef.current = reset;
+        window.addEventListener('mousemove', reset);
+        window.addEventListener('keydown', reset);
+        window.addEventListener('click', reset);
+        window.addEventListener('touchstart', reset);
+        window.addEventListener('visibilitychange', reset);
+    };
+    const unbindActivityListeners = () => {
+        if (!activityHandlerRef.current)
+            return;
+        const reset = activityHandlerRef.current;
+        window.removeEventListener('mousemove', reset);
+        window.removeEventListener('keydown', reset);
+        window.removeEventListener('click', reset);
+        window.removeEventListener('touchstart', reset);
+        window.removeEventListener('visibilitychange', reset);
+        activityHandlerRef.current = null;
+    };
+    useEffect(() => {
+        if (currentUser && settings.autoLogout) {
+            bindActivityListeners();
+            startInactivityTimer();
+            return () => {
+                unbindActivityListeners();
+                clearInactivityTimer();
+            };
+        }
+        else {
+            unbindActivityListeners();
+            clearInactivityTimer();
+        }
+    }, [currentUser?.id, settings.autoLogout, settings.autoLogoutTime]);
+    // Init
     useEffect(() => {
         let unsub = null;
         (async () => {
@@ -513,7 +629,7 @@ export const AppProvider = ({ children }) => {
                 if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
                     await new Promise(r => setTimeout(r, 60));
                     await Promise.all([fetchUsers(), fetchSettings(), fetchTasks()]);
-                    resetRealtimeSubscription(); // opnieuw subscriben met verse token
+                    resetRealtimeSubscription();
                 }
                 if (event === 'SIGNED_OUT') {
                     setCurrentUser(null);
@@ -525,7 +641,7 @@ export const AppProvider = ({ children }) => {
             });
             unsub = () => sub.data.subscription.unsubscribe();
         })();
-        // Polling fallback elke 15s (voor het geval Realtime niet vuurt)
+        // Poll fallback (15s) als realtime niet vuurt
         pollRef.current = window.setInterval(() => { fetchTasks(); }, 15000);
         return () => {
             if (unsub)
@@ -540,7 +656,7 @@ export const AppProvider = ({ children }) => {
             }
         };
     }, []);
-    // Extra zekerheid: als currentUser wisselt, even refreshen
+    // refresh bij user switch
     useEffect(() => {
         if (currentUser) {
             (async () => {
