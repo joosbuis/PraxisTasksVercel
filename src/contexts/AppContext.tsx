@@ -275,35 +275,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const pwd = (password ?? '').trim();
       
       console.log('[login] Attempting login for employee:', emp);
-     console.log('[login] Password length:', pwd.length);
-     console.log('[login] Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-     console.log('[login] Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
-      
-     console.log('[login] Querying database for employee:', emp);
-     const { data: userData, error: userError } = await supabase
-       .from('users')
-       .select('*')
-       .eq('employee_number', emp)
-       .maybeSingle();
-       
-      console.log('[login] Database query error:', userError);
+      const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
       console.log('[login] User data found:', !!userData);
-     if (userData) {
-       console.log('[login] User data:', {
-         id: userData.id,
-         employee_number: userData.employee_number,
-         name: userData.name,
-         role: userData.role,
-         is_first_login: userData.is_first_login,
-         has_temp_code: !!userData.temporary_code
-       });
-     }
-     
-     // Test database connection
-     if (userError) {
-       console.error('[login] Database connection error:', userError);
-       return false;
-     }
       
       if (!userData) return false;
 

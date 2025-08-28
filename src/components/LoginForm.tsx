@@ -165,14 +165,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 disabled={isLoading}
                 className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-               <>
-                 {isLoading ? (
-                   <div className="w-5 h-5 border-2 border-praxis-grey border-t-transparent rounded-full animate-spin" />
-                 ) : (
-                   <Lock className="w-5 h-5" />
-                 )}
-                 {isLoading ? 'Instellen...' : 'Wachtwoord instellen'}
-               </>
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-praxis-grey border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Lock className="w-5 h-5" />
+                )}
+                {isLoading ? 'Instellen...' : 'Wachtwoord instellen'}
               </button>
             </form>
 
