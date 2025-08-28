@@ -53,7 +53,7 @@ function setUserTheme(userId: string | undefined, theme: AppSettings["theme"]) {
 }
 
 const t = {
-  loginToAccount: "Log in op je account",
+  loginToAccount: "Log in op je accountPreveiw",
   employeeNumber: "Personeelsnummer",
   password: "Wachtwoord",
   login: "Inloggen",
