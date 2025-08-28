@@ -170,12 +170,18 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 ) : (
                   <Lock className="w-5 h-5" />
                 )}
+                {isLoading ? 'Instellen...' : 'Wachtwoord instellen'}
+              </button>
+            </form>
+
+            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="text-sm font-medium text-blue-800 mb-2">Test accounts:</h3>
               <div><strong>Manager:</strong> Personeelsnr: 1001, Wachtwoord: manager123</div>
               <div><strong>Gebruiker:</strong> Personeelsnr: 1002, Wachtwoord: user123</div>
               <div className="text-xs text-gray-500 mt-2">
                 Bij eerste login wordt automatisch een account aangemaakt.
               </div>
-            </form>
+            </div>
           </div>
         </div>
       </div>
@@ -246,6 +252,15 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               {isLoading ? t.loading : t.login}
             </button>
           </form>
+
+          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-medium text-blue-800 mb-2">Test accounts:</h3>
+            <div><strong>Manager:</strong> Personeelsnr: 1001, Wachtwoord: manager123</div>
+            <div><strong>Gebruiker:</strong> Personeelsnr: 1002, Wachtwoord: user123</div>
+            <div className="text-xs text-gray-500 mt-2">
+              Bij eerste login wordt automatisch een account aangemaakt.
+            </div>
+          </div>
         </div>
       </div>
     </div>
