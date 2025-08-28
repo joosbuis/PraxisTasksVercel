@@ -275,7 +275,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const pwd = (password ?? '').trim();
       
       console.log('[login] Attempting login for employee:', emp);
-      const { data: userData } = await supabase.from('users').select('*').eq('employee_number', emp).maybeSingle();
+      
+      // First check if user exists in database
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('employee_number', emp)
+        .maybeSingle();
+        
+      if (userError) {
+        console.error('[login] Database error:', userError);
+        return false;
+      }
+      
       console.log('[login] User data found:', !!userData);
       
       if (!userData) return false;
